@@ -111,6 +111,10 @@ else:
                      (data['ParameterFloatValue'] >= -100) &
                      (data['ParameterFloatValue'] <= 5000)]
 
+    # Asegurarse de que ReadTime sea datetime y ordenar los datos
+    filtered_data['ReadTime'] = pd.to_datetime(filtered_data['ReadTime'])
+    filtered_data = filtered_data.sort_values(by='ReadTime')
+
     # Graficar datos
     st.write(f"### Gráfico de {selected_param} para el equipo C46")
     fig, ax = plt.subplots(figsize=(12, 6))
