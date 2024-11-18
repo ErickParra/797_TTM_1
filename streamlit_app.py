@@ -142,29 +142,6 @@ else:
 import pandas as pd
 import numpy as np
 
-# Asegúrate de que 'ReadTime' esté en formato datetime
-data['ReadTime'] = pd.to_datetime(data['ReadTime'])
-
-# Pivotear los datos para que cada ParameterName sea una columna
-pivoted_data = data.pivot_table(
-    index='ReadTime', 
-    columns='ParameterName', 
-    values='ParameterFloatValue'
-)
-
-# Resamplear los datos a intervalos de 30 segundos, llenando valores faltantes con interpolación
-resampled_data = pivoted_data.resample('30S').mean().interpolate(method='linear')
-
-# Mostrar los primeros registros para verificar
-st.write("### Datos resampleados a 30 segundos")
-st.dataframe(resampled_data)
-
-# Guardar los datos procesados si es necesario
-# resampled_data.to_csv("resampled_data.csv")
-
-
-
-
 import pandas as pd
 
 # Diccionario para mapear nombres de columnas
@@ -204,9 +181,9 @@ column_mapping = {
     "Engine Oil Temperature (797F)": "Engine Oil Temperature-Engine (Deg F)"
 }
 
-# Conversiones de unidades
+# Conversión de unidades
 def convert_units(data):
-    # Conversión de presión: kPa a psi (1 kPa = 0.145038 psi)
+    # Conversión de presión: kPa a psi
     pressure_columns = [
         "Engine Oil Pressure-Engine (psi)",
         "Service Brake Accumulator Pressure-Brake ECM (psi)",
@@ -227,7 +204,7 @@ def convert_units(data):
         if col in data.columns:
             data[col] = data[col] * 0.145038
 
-    # Conversión de temperatura: °C a °F (°F = °C × 9/5 + 32)
+    # Conversión de temperatura: °C a °F
     temperature_columns = [
         "Intake Manifold Air Temperature-Engine (Deg F)",
         "Intake Manifold #2 Air Temperature-Engine (Deg F)",
@@ -248,12 +225,24 @@ def convert_units(data):
 
     return data
 
-# Aplicar el mapeo de nombres de columnas
+# Paso 1: Renombrar columnas
 data.rename(columns=column_mapping, inplace=True)
 
-# Aplicar las conversiones de unidades
+# Paso 2: Convertir unidades
 data = convert_units(data)
 
+# Paso 3: Resamplear a 30 segundos
+data["ReadTime"] = pd.to_datetime(data["ReadTime"])
+data.set_index("ReadTime", inplace=True)
+resampled_data = data.resample("30S").mean()
+
+# Paso 4: Pivotear datos
+pivoted_data = resampled_data.reset_index().pivot_table(
+    index="ReadTime",
+    columns="ParameterName",
+    values="ParameterFloatValue"
+)
+
 # Mostrar datos procesados
-st.write("### Datos procesados")
-st.dataframe(data)
+st.write("### Datos procesados y listos para TTM")
+st.dataframe(pivoted_data)
