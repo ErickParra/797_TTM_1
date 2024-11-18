@@ -250,6 +250,9 @@ resampled_data.rename(columns=vims_column_mapping, inplace=True)
 # Aplicar conversiones de unidades
 resampled_data = convert_units(resampled_data)
 
+# Ordenar los datos por ReadTime en orden descendente
+resampled_data = resampled_data.sort_index(ascending=False)
+
 # Mostrar datos procesados
 st.write("### Datos procesados después de conversiones y renombrados")
 st.dataframe(resampled_data)
