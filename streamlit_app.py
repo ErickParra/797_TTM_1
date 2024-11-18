@@ -250,6 +250,9 @@ resampled_data.rename(columns=vims_column_mapping, inplace=True)
 # Aplicar conversiones de unidades
 resampled_data = convert_units(resampled_data)
 
+# Ajustar ReadTime a la zona horaria de Santiago, Chile
+resampled_data.index = resampled_data.index.tz_localize('UTC').tz_convert('America/Santiago')
+
 # Ordenar los datos por ReadTime en orden descendente
 resampled_data = resampled_data.sort_index(ascending=False)
 
