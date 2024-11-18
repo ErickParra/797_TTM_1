@@ -104,8 +104,12 @@ else:
         data['ParameterName'].unique()
     )
 
+
+
     # Filtrar datos para el parámetro seleccionado
-    filtered_data = data[data['ParameterName'] == selected_param]
+    filtered_data = data[(data['ParameterName'] == selected_param) &
+                     (data['ParameterFloatValue'] >= -100) &
+                     (data['ParameterFloatValue'] <= 5000)]
 
     # Graficar datos
     st.write(f"### Gráfico de {selected_param} para el equipo C46")
@@ -126,4 +130,4 @@ else:
         plt.grid()
         st.pyplot(fig)
     else:
-        st.write(f"No hay datos disponibles para {selected_param}.")
+        st.write(f"No hay datos disponibles para {selected_param} en el rango especificado (-100 a 5000).")
