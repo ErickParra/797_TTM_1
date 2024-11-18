@@ -142,8 +142,6 @@ else:
 import pandas as pd
 import numpy as np
 
-import pandas as pd
-
 # Diccionario para mapear nombres de columnas
 column_mapping = {
     "Parking Brake (797F)": "Parking Brake-Brake ECM ()",
