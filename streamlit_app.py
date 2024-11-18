@@ -250,6 +250,8 @@ resampled_data.rename(columns=vims_column_mapping, inplace=True)
 # Aplicar conversiones de unidades
 resampled_data = convert_units(resampled_data)
 
+import pytz
+
 # Ajustar ReadTime a la zona horaria de Santiago, Chile
 resampled_data.index = resampled_data.index.tz_localize('UTC').tz_convert('America/Santiago')
 
