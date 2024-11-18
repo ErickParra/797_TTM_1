@@ -142,105 +142,24 @@ else:
 import pandas as pd
 import numpy as np
 
-# Diccionario para mapear nombres de columnas
-column_mapping = {
-    "Parking Brake (797F)": "Parking Brake-Brake ECM ()",
-    "Cold Mode (797F)": "Cold Mode-Engine ()",
-    "Shift Lever Position (797F)": "Shift Lever Position-Chassis Ctrl ()",
-    "Oht Truck Payload State (797F)": "OHT Truck Payload State-Communication Gateway #2 ()",
-    "Engine Oil Pressure (797F)": "Engine Oil Pressure-Engine (psi)",
-    "Service Brake Accumulator Pressure (797F)": "Service Brake Accumulator Pressure-Brake ECM (psi)",
-    "Differential (Axle) Lube Pressure (797F)": "Differential (Axle) Lube Pressure-Brake ECM (psi)",
-    "Steering Accumulator Oil Pressure (797F)": "Steering Accumulator Oil Pressure-Chassis Ctrl (psi)",
-    "Intake Manifold Air Temperature (797F)": "Intake Manifold Air Temperature-Engine (Deg F)",
-    "Intake Manifold #2 Air Temperature (797F)": "Intake Manifold #2 Air Temperature-Engine (Deg F)",
-    "Machine System Air Pressure (797F)": "Machine System Air Pressure-Chassis Ctrl (psi)",
-    "Intake Manifold #2 Pressure (797F)": "Intake Manifold #2 Pressure-Engine (psi)",
-    "Intake Manifold Pressure (797F)": "Intake Manifold Pressure-Engine (psi)",
-    "Left Rear Parking Brake Oil Pressure (797F)": "Left Rear Parking Brake Oil Pressure-Brake ECM (psi)",
-    "Fuel Pressure (797F)": "Fuel Pressure-Engine (psi)",
-    "Right Rear Parking Brake Oil Pressure (797F)": "Right Rear Parking Brake Oil Pressure-Brake ECM (psi)",
-    "Transmission Input Speed (797F)": "Transmission Input Speed-Trans Ctrl (rpm)",
-    "Engine Coolant Pump Outlet Pressure (797F)": "Engine Coolant Pump Outlet Pressure (absolute)-Engine (psi)",
-    "Engine Speed (797F)": "Engine Speed-Engine (rpm)",
-    "Desired Fuel Rail Pressure (797F)": "Desired Fuel Rail Pressure-Engine (psi)",
-    "Fuel Rail Pressure (797F)": "Fuel Rail Pressure-Engine (psi)",
-    "Engine Fan Speed (797F)": "Engine Fan Speed-Brake ECM (rpm)",
-    "Right Exhaust Temperature (797F)": "Right Exhaust Temperature-Engine (Deg F)",
-    "Left Exhaust Temperature (797F)": "Left Exhaust Temperature-Engine (Deg F)",
-    "Left Front Brake Oil Temperature (797F)": "Left Front Brake Oil Temperature-Brake ECM (Deg F)",
-    "Right Front Brake Oil Temperature (797F)": "Right Front Brake Oil Temperature-Brake ECM (Deg F)",
-    "Oil Filter Differential Pressure (797F)": "Oil Filter Differential Pressure-Engine (psi)",
-    "Right Rear Brake Oil Temperature (797F)": "Right Rear Brake Oil Temperature-Brake ECM (Deg F)",
-    "Left Rear Brake Oil Temperature (797F)": "Left Rear Brake Oil Temperature-Brake ECM (Deg F)",
-    "Engine Coolant Pump Outlet Temperature (797F)": "Engine Coolant Pump Outlet Temperature-Engine (Deg F)",
-    "Engine Coolant Temperature (797F)": "Engine Coolant Temperature-Engine (Deg F)",
-    "Transmission Oil Temperature (797F)": "Transmission Oil Temperature-Trans Ctrl (Deg F)",
-    "Engine Oil Temperature (797F)": "Engine Oil Temperature-Engine (Deg F)"
-}
+# Asegúrate de que 'ReadTime' esté en formato datetime
+data['ReadTime'] = pd.to_datetime(data['ReadTime'])
 
-# Conversión de unidades
-def convert_units(data):
-    # Conversión de presión: kPa a psi
-    pressure_columns = [
-        "Engine Oil Pressure-Engine (psi)",
-        "Service Brake Accumulator Pressure-Brake ECM (psi)",
-        "Differential (Axle) Lube Pressure-Brake ECM (psi)",
-        "Steering Accumulator Oil Pressure-Chassis Ctrl (psi)",
-        "Machine System Air Pressure-Chassis Ctrl (psi)",
-        "Intake Manifold #2 Pressure-Engine (psi)",
-        "Intake Manifold Pressure-Engine (psi)",
-        "Left Rear Parking Brake Oil Pressure-Brake ECM (psi)",
-        "Fuel Pressure-Engine (psi)",
-        "Right Rear Parking Brake Oil Pressure-Brake ECM (psi)",
-        "Oil Filter Differential Pressure-Engine (psi)",
-        "Engine Coolant Pump Outlet Pressure (absolute)-Engine (psi)",
-        "Desired Fuel Rail Pressure-Engine (psi)",
-        "Fuel Rail Pressure-Engine (psi)"
-    ]
-    for col in pressure_columns:
-        if col in data.columns:
-            data[col] = data[col] * 0.145038
-
-    # Conversión de temperatura: °C a °F
-    temperature_columns = [
-        "Intake Manifold Air Temperature-Engine (Deg F)",
-        "Intake Manifold #2 Air Temperature-Engine (Deg F)",
-        "Right Exhaust Temperature-Engine (Deg F)",
-        "Left Exhaust Temperature-Engine (Deg F)",
-        "Left Front Brake Oil Temperature-Brake ECM (Deg F)",
-        "Right Front Brake Oil Temperature-Brake ECM (Deg F)",
-        "Right Rear Brake Oil Temperature-Brake ECM (Deg F)",
-        "Left Rear Brake Oil Temperature-Brake ECM (Deg F)",
-        "Engine Coolant Pump Outlet Temperature-Engine (Deg F)",
-        "Engine Coolant Temperature-Engine (Deg F)",
-        "Transmission Oil Temperature-Trans Ctrl (Deg F)",
-        "Engine Oil Temperature-Engine (Deg F)"
-    ]
-    for col in temperature_columns:
-        if col in data.columns:
-            data[col] = data[col] * 9/5 + 32
-
-    return data
-
-# Paso 1: Renombrar columnas
-data.rename(columns=column_mapping, inplace=True)
-
-# Paso 2: Convertir unidades
-data = convert_units(data)
-
-# Paso 3: Resamplear a 30 segundos
-data["ReadTime"] = pd.to_datetime(data["ReadTime"])
-data.set_index("ReadTime", inplace=True)
-resampled_data = data.resample("30S").mean()
-
-# Paso 4: Pivotear datos
-pivoted_data = resampled_data.reset_index().pivot_table(
-    index="ReadTime",
-    columns="ParameterName",
-    values="ParameterFloatValue"
+# Pivotear los datos para que cada ParameterName sea una columna
+pivoted_data = data.pivot_table(
+    index='ReadTime', 
+    columns='ParameterName', 
+    values='ParameterFloatValue'
 )
 
-# Mostrar datos procesados
-st.write("### Datos procesados y listos para TTM")
-st.dataframe(pivoted_data)
+# Resamplear los datos a intervalos de 30 segundos, llenando valores faltantes con interpolación
+resampled_data = pivoted_data.resample('30S').mean().interpolate(method='linear')
+
+# Mostrar los primeros registros para verificar
+st.write("### Datos resampleados a 30 segundos")
+st.dataframe(resampled_data)
+
+# Guardar los datos procesados si es necesario
+# resampled_data.to_csv("resampled_data.csv")
+
+
