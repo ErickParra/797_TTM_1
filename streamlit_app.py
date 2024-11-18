@@ -237,6 +237,9 @@ data.set_index("ReadTime", inplace=True)
 numeric_columns = data.select_dtypes(include=["number"]).columns
 resampled_data = data[numeric_columns].resample("30S").mean()
 
+st.write("Columnas actuales en resampled_data:", resampled_data.columns)
+
+
 # Paso 4: Pivotear datos
 pivoted_data = resampled_data.reset_index().pivot_table(
         index="ReadTime",
