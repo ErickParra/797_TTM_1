@@ -135,3 +135,29 @@ else:
         st.pyplot(fig)
     else:
         st.write(f"No hay datos disponibles para {selected_param} en el rango especificado (-100 a 5000).")
+
+
+
+
+import pandas as pd
+import numpy as np
+
+# Asegúrate de que 'ReadTime' esté en formato datetime
+data['ReadTime'] = pd.to_datetime(data['ReadTime'])
+
+# Pivotear los datos para que cada ParameterName sea una columna
+pivoted_data = data.pivot_table(
+    index='ReadTime', 
+    columns='ParameterName', 
+    values='ParameterFloatValue'
+)
+
+# Resamplear los datos a intervalos de 30 segundos, llenando valores faltantes con interpolación
+resampled_data = pivoted_data.resample('30S').mean().interpolate(method='linear')
+
+# Mostrar los primeros registros para verificar
+st.write("### Datos resampleados a 30 segundos")
+st.dataframe(resampled_data)
+
+# Guardar los datos procesados si es necesario
+# resampled_data.to_csv("resampled_data.csv")
