@@ -14,6 +14,7 @@ import matplotlib.pyplot as plt
 import pyodbc
 from datetime import datetime
 
+
 # Acceder a los secrets almacenados en Streamlit Cloud
 server = st.secrets["server"]
 database = st.secrets["database"]
