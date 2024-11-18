@@ -39,7 +39,7 @@ conn_str = f'DRIVER={{ODBC Driver 17 for SQL Server}};SERVER={server};DATABASE={
 query = """
 SELECT
        [EquipmentName],
-       FROM_UTC_TIMESTAMP([ReadTime], 'America/Santiago') AS [ReadTime],
+       [ReadTime] AT TIME ZONE 'UTC' AT TIME ZONE 'Pacific SA Standard Time' AS [ReadTime],
        [EquipmentModel],
        [ParameterName],
        [ParameterFloatValue]
