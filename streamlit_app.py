@@ -54,7 +54,7 @@ SELECT
 FROM [OemDataProvider].[OemParameterExternalView]
 WHERE 
       [EquipmentModel] = '797F' AND 
-      [EquipmentName] = 'C42' AND 
+      [EquipmentName] = 'C41' AND 
       [ParameterName] IN (
           'Parking Brake (797F)', 
           'Cold Mode (797F)', 
