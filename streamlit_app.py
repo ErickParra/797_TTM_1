@@ -45,7 +45,7 @@ conn_str = f'DRIVER={{ODBC Driver 17 for SQL Server}};SERVER={server};DATABASE={
 
 
 # Lista de equipos disponibles
-available_equipments = ['C17', 'C18', 'C19', 'C20', 'C21', 'C22', 'C43', 'C45', 'C48']
+available_equipments = ['C17', 'C18', 'C19', 'C20', 'C21', 'C22', 'C23','C24', 'C25', 'C36', 'C34', 'C35', 'C36', 'C37', 'C38', 'C39', 'C40', 'C41','C42','C43', 'C45', 'C48']
 
 # Selector de equipo
 selected_equipment = st.selectbox("Seleccione el equipo:", available_equipments, index=0)
