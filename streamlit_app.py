@@ -19,6 +19,9 @@ from tsfm_public.toolkit.visualization import plot_predictions
 from datetime import datetime, timedelta
 from databricks import sql
 
+from tsfm_public.models import TinyTimeMixerForPrediction
+from transformers import AutoConfig
+import torch
 
 # Acceder a los secrets almacenados en Streamlit Cloud
 server = st.secrets["server"]
@@ -339,19 +342,27 @@ CONFIG_PATH = "./config.json"
 OBSERVABLE_SCALER_PATH = "./observable_scaler_0.pkl"
 TARGET_SCALER_PATH = "./target_scaler_0.pkl"
 
-# Función para cargar el modelo TTM
+
+
+# Function to load the TTM model
 @st.cache_resource
 def load_ttm_model():
     try:
+        # Load configuration
         config = AutoConfig.from_pretrained(CONFIG_PATH)
-        model = PreTrainedModel.from_pretrained(
+
+        # Load the TinyTimeMixer model from the correct path
+        model = TinyTimeMixerForPrediction.from_pretrained(
             pretrained_model_name_or_path=MODEL_PATH,
             config=config,
-            from_tf=False,
+            from_tf=False,  # Assuming PyTorch checkpoint
             torch_dtype=torch.float32,
             low_cpu_mem_usage=True,
         )
-        model.eval()  # Configurar el modelo en modo evaluación
+
+        # Set the model to evaluation mode
+        model.eval()
+
         return model
     except Exception as e:
         st.error(f"Error al cargar el modelo: {e}")
