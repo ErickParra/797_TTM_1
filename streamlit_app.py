@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 import pyodbc
 #from datetime import datetime
 
-from transformers import TinyTimeMixerForPrediction
+from tsfm_public.models.tinytimemixer import TinyTimeMixerForPrediction
 from tsfm_public.toolkit.visualization import plot_predictions
 from datetime import datetime, timedelta
 from databricks import sql
