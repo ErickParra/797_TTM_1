@@ -2,6 +2,7 @@ streamlit
 pandas
 matplotlib
 plotly
+ipython
 pyodbc
 numpy
 scikit-learn
