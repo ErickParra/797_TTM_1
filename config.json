@@ -37,7 +37,7 @@
   "model_type": "tinytimemixer",
   "norm_eps": 1e-05,
   "norm_mlp": "LayerNorm",
-  "num_input_channels": 33,
+  "num_input_channels": 34,
   "num_layers": 2,
   "num_parallel_samples": 100,
   "num_patches": 8,
@@ -57,7 +57,7 @@
   "self_attn_heads": 1,
   "stride_ratio": 1,
   "torch_dtype": "float32",
-  "transformers_version": "4.46.2",
+  "transformers_version": "4.44.2",
   "use_decoder": true,
   "use_positional_encoding": false
 }
