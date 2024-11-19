@@ -295,6 +295,33 @@ def display_config_file(config_path):
 display_config_file(config_path)
 
 
+git clone https://github.com/ibm-granite/granite-tsfm.git
+cd granite-tsfm
+pip install .
+
+from tsfm_public.models.tinytimemixer.modeling_tinytimemixer import TinyTimeMixerForPrediction
+from transformers import AutoConfig
+import torch
+
+# Función para cargar el modelo TTM
+@st.cache_resource
+def load_ttm_model():
+    try:
+        config = AutoConfig.from_pretrained(CONFIG_PATH)
+        model = TinyTimeMixerForPrediction.from_pretrained(
+            pretrained_model_name_or_path=MODEL_PATH,
+            config=config,
+            from_tf=False,
+            torch_dtype=torch.float32,
+            low_cpu_mem_usage=True,
+        )
+        model.eval()  # Configurar el modelo en modo evaluación
+        return model
+    except Exception as e:
+        st.error(f"Error al cargar el modelo: {e}")
+        return None
+
+
 
 
 import streamlit as st
