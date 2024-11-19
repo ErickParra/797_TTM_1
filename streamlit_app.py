@@ -441,6 +441,10 @@ if uploaded_file:
         st.error(f"Error durante la predicción: {e}")
 
 
+# Ajustar el índice y renombrar columna si es necesario
+resampled_data = resampled_data.reset_index()  # Restaurar 'ReadTime' como una columna
+if 'ReadTime' in resampled_data.columns:
+    resampled_data.rename(columns={'ReadTime': 'New_Date/Time'}, inplace=True)
 
 
 # Escalar el dataframe resampled_data
