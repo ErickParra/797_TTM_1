@@ -702,7 +702,7 @@ col1, col2 = st.columns(2)
 
 # Gráfico de valores reales (en la columna izquierda)
 with col1:
-    st.markdown("###### Valores Reales (Últimos 128 Registros) {selected_equipment}")
+    st.markdown(f"###### Valores Reales (Últimos 128 Registros) {selected_equipment}")
     fig1, ax1 = plt.subplots(figsize=(6, 4))  # Ajustar tamaño para caber en la columna
     ax1.plot(
         real_data[timestamp_column],
@@ -727,7 +727,7 @@ with col1:
 
 # Gráfico de predicciones generadas (en la columna derecha)
 with col2:
-    st.markdown("###### Predicciones (Horizonte 48 minutos) {selected_equipment}")
+    st.markdown(f"###### Predicciones (Horizonte 48 minutos) {selected_equipment}")
     prediction_col = f"{target_column}_prediction"
     if prediction_col not in predictions.columns:
         st.error(f"La columna de predicciones '{prediction_col}' no está en el DataFrame de predicciones.")
