@@ -592,7 +592,7 @@ except Exception as e:
 resampled_data = resampled_data.sort_values(by=timestamp_column)
 
 # Filtrar los últimos 512 registros
-context_length = 512
+context_length = 128
 if len(resampled_data) > context_length:
     real_data = resampled_data.iloc[-context_length:]
 else:
