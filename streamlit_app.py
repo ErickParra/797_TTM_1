@@ -44,8 +44,14 @@ def load_data(query, conn_str):
 conn_str = f'DRIVER={{ODBC Driver 17 for SQL Server}};SERVER={server};DATABASE={database};UID={username};PWD={password}'
 
 
-# Ejecución de la consulta SQL con todos los parámetros
-query = """
+# Lista de equipos disponibles
+available_equipments = ['C17', 'C18', 'C19', 'C20', 'C21', 'C22', 'C43', 'C45', 'C48']
+
+# Selector de equipo
+selected_equipment = st.selectbox("Seleccione el equipo:", available_equipments, index=0)
+
+# Construcción dinámica de la consulta SQL
+query = f"""
 SELECT
        [EquipmentName],
        [ReadTime],
@@ -55,7 +61,7 @@ SELECT
 FROM [OemDataProvider].[OemParameterExternalView]
 WHERE 
       [EquipmentModel] = '797F' AND 
-      [EquipmentName] = 'C21' AND 
+      [EquipmentName] = '{selected_equipment}' AND 
       [ParameterName] IN (
           'Parking Brake (797F)', 
           'Cold Mode (797F)', 
@@ -72,11 +78,9 @@ WHERE
           'Intake Manifold Pressure (797F)', 
           'Left Rear Parking Brake Oil Pressure (797F)',
           'Fuel Pressure (797F)', 
-          --'Right Rear Parking Brake Oil Pressure (797F)',
           'Transmission Input Speed (797F)', 
           'Engine Coolant Pump Outlet Pressure (797F)', 
           'Engine Speed (797F)',
-          --'Desired Fuel Rail Pressure (797F)', 
           'Fuel Rail Pressure (797F)', 
           'Engine Fan Speed (797F)',
           'Right Exhaust Temperature (797F)', 
@@ -100,11 +104,11 @@ with st.spinner('Ejecutando consulta...'):
     data = load_data(query, conn_str)
 st.success('Consulta completada!')
 
-# Verificar si los datos son válidos
+# Mostrar los datos obtenidos
 if data.empty:
-    st.error("No se pudo obtener datos de la base de datos. Revisa la conexión y los logs para más detalles.")
+    st.error("No se encontraron datos para el equipo seleccionado.")
 else:
-    st.write("### Datos obtenidos del equipo C46")
+    st.write(f"### Datos obtenidos para el equipo: {selected_equipment}")
     st.dataframe(data)
 
     # Selector de parámetro para graficar
