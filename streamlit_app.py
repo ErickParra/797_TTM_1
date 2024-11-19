@@ -309,23 +309,22 @@ display_config_file(config_path)
 
 
 # Función para cargar el modelo TTM
+from tsfm_public.models import TinyTimeMixerForPrediction
+
+# Function to load the TTM model
 @st.cache_resource
 def load_ttm_model():
     try:
-        config = AutoConfig.from_pretrained(CONFIG_PATH)
+        # Load the TinyTimeMixer model directly from Hugging Face
         model = TinyTimeMixerForPrediction.from_pretrained(
-            pretrained_model_name_or_path=MODEL_PATH,
-            config=config,
-            from_tf=False,
-            torch_dtype=torch.float32,
-            low_cpu_mem_usage=True,
+            "ibm-granite/granite-timeseries-ttm-r2",  # Replace with the correct model if needed
+            revision="main"  # Specify the branch or revision if necessary
         )
-        model.eval()  # Configurar el modelo en modo evaluación
+        model.eval()  # Set the model to evaluation mode
         return model
     except Exception as e:
         st.error(f"Error al cargar el modelo: {e}")
         return None
-
 
 
 
