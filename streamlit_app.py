@@ -553,3 +553,28 @@ else:
     except Exception as e:
         st.error(f"Error durante la predicción: {e}")
 
+# Crear un DataFrame con las predicciones y tiempo
+        time_col = "New_Date/Time"
+        X = resampled_data.drop(columns=[time_col, target_column])  # Features
+        y = resampled_data[target_column]  # Target
+        timestamps = resampled_data[time_col]
+        
+        predictions_df = pd.DataFrame({
+            time_col: timestamps.values,
+            f"{target_column}_prediction": descaled_predictions.flatten()
+        })
+
+        # Mostrar resultados
+        st.write("### Predicciones generadas")
+        st.dataframe(predictions_df)
+
+        # Graficar resultados
+        fig, ax = plt.subplots(figsize=(12, 6))
+        ax.plot(timestamps, y.values, label="Actual", color="blue", linewidth=1)
+        ax.plot(timestamps, descaled_predictions.flatten(), label="Predicción", color="red", linestyle="--")
+        ax.set_title("Predicción vs Actual")
+        ax.set_xlabel("Tiempo")
+        ax.set_ylabel("Temperatura (Deg F)")
+        ax.legend()
+        plt.grid()
+        st.pyplot(fig)
