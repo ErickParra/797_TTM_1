@@ -19,7 +19,7 @@ from tsfm_public.toolkit.visualization import plot_predictions
 from datetime import datetime, timedelta
 from databricks import sql
 
-from tsfm_public.models import TinyTimeMixerForPrediction
+#from tsfm_public.models import TinyTimeMixerForPrediction
 from transformers import AutoConfig
 import torch
 
