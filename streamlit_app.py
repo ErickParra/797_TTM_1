@@ -150,6 +150,16 @@ else:
 import pandas as pd
 import numpy as np
 
+# Verificar valores únicos en la columna ParameterName
+st.write("### Valores únicos en ParameterName")
+unique_parameters = data['ParameterName'].unique()  # Obtener valores únicos
+st.write(f"Número de parámetros únicos: {len(unique_parameters)}")
+st.write("#### Lista de parámetros únicos:")
+st.write(unique_parameters)
+
+
+
+
 # Asegúrate de que 'ReadTime' esté en formato datetime
 data['ReadTime'] = pd.to_datetime(data['ReadTime'])
 
