@@ -340,29 +340,23 @@ def load_ttm_model():
 
 
 
-import streamlit as st
 from transformers import AutoConfig, PreTrainedModel
 import torch
-import pandas as pd
 import joblib
 import os
 
 # Configuración de paths
-MODEL_PATH = "./model.safetensors"
-CONFIG_PATH = "./config.json"
-OBSERVABLE_SCALER_PATH = "./observable_scaler_0.pkl"
-TARGET_SCALER_PATH = "./target_scaler_0.pkl"
-
+MODEL_DIR = "."  # Directorio actual donde están los archivos
+CONFIG_PATH = f"{MODEL_DIR}/config.json"
 
 # Función para cargar el modelo
-# Función para cargar el modelo finetuneado
 @st.cache(allow_output_mutation=True)
 def load_model():
     try:
-        # Cargar el modelo utilizando TinyTimeMixerForPrediction y los archivos correspondientes
+        # Cargar el modelo desde el directorio donde están los archivos
         model = TinyTimeMixerForPrediction.from_pretrained(
-            pretrained_model_name_or_path="./model.safetensors",
-            config="./config.json"
+            pretrained_model_name_or_path=MODEL_DIR,  # Directorio que contiene los archivos
+            config=CONFIG_PATH  # Ruta al archivo de configuración
         )
         st.success("Modelo TTM cargado correctamente.")
         return model
@@ -379,7 +373,6 @@ if model is not None:
     st.write(model)
 else:
     st.error("No se pudo cargar el modelo. Revisa los archivos y las configuraciones.")
-
 
 
 # Función para cargar los escaladores
