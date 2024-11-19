@@ -43,6 +43,7 @@ def load_data(query, conn_str):
 # Configuración de la conexión a la base de datos
 conn_str = f'DRIVER={{ODBC Driver 17 for SQL Server}};SERVER={server};DATABASE={database};UID={username};PWD={password}'
 
+
 # Ejecución de la consulta SQL con todos los parámetros
 query = """
 SELECT
