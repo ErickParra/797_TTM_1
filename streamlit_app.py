@@ -359,25 +359,24 @@ TARGET_SCALER_PATH = "./target_scaler_0.pkl"
 @st.cache_resource
 def load_ttm_model():
     try:
-        # Load configuration
+        # Load the model configuration
         config = AutoConfig.from_pretrained(CONFIG_PATH)
 
-        # Load the TinyTimeMixer model from the correct path
+        # Load the model weights
         model = TinyTimeMixerForPrediction.from_pretrained(
             pretrained_model_name_or_path=MODEL_PATH,
             config=config,
-            from_tf=False,  # Assuming PyTorch checkpoint
             torch_dtype=torch.float32,
-            low_cpu_mem_usage=True,
+            low_cpu_mem_usage=True
         )
 
         # Set the model to evaluation mode
         model.eval()
-
         return model
     except Exception as e:
-        st.error(f"Error al cargar el modelo: {e}")
+        st.error(f"Error al cargar el modelo TTM: {e}")
         return None
+
 
 # Función para cargar los escaladores
 @st.cache_resource
