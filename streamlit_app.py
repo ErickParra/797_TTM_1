@@ -692,7 +692,7 @@ fixed_lines = [
 ]
 
 # Rango uniforme para el eje Y
-y_min, y_max = 150, 250
+y_min, y_max = 150, 245
 
 # Gráfico de valores reales (en la columna izquierda)
 with col1:
