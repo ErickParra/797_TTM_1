@@ -391,7 +391,7 @@ def load_scalers():
         return None, None
 
 # Cargar el modelo y escaladores
-model = load_ttm_model()
+model = load_model()
 observable_scaler, target_scaler = load_scalers()
 
 # Verificar la carga exitosa
