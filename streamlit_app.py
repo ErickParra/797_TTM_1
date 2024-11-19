@@ -554,3 +554,30 @@ else:
 
 st.write(f"Dimensiones de las features antes de escalar: {X_for_scaler.shape}")
 st.write(f"Dimensiones de las features después de escalar: {normalized_X.shape}")
+
+
+
+
+
+# Alternativas para extraer las predicciones
+try:
+    with torch.no_grad():
+        model_output = model(input_tensor)  # Generar predicciones
+
+    # Prueba las diferentes alternativas
+    if hasattr(model_output, 'logits'):
+        predictions_tensor = model_output.logits
+    elif hasattr(model_output, 'predictions'):
+        predictions_tensor = model_output.predictions
+    elif hasattr(model_output, 'forecasts'):
+        predictions_tensor = model_output.forecasts
+    else:
+        raise AttributeError("No se encontró un atributo válido para las predicciones.")
+
+    # Convertir a numpy y desescalar
+    descaled_predictions = target_scaler.inverse_transform(predictions_tensor.cpu().numpy().squeeze(0))
+    st.write("### Predicciones desescaladas")
+    st.dataframe(descaled_predictions)
+
+except Exception as e:
+    st.error(f"Error al extraer predicciones: {e}")
