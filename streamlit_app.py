@@ -496,6 +496,8 @@ if target_column not in resampled_data.columns or timestamp_column not in resamp
 else:
     try:
         # Asegurarse de que los últimos 512 puntos se usan
+        resampled_data = resampled_data.sort_values(by="New_Date/Time")
+        
         context_length = 512  # Longitud requerida por el modelo
         if len(resampled_data) > context_length:
             resampled_data = resampled_data.iloc[-context_length:]
