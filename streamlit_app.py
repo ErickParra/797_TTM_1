@@ -650,7 +650,7 @@ with col1:
 
 # Gráfico de predicciones generadas (en la columna derecha)
 with col2:
-    st.write("### Predicciones Generadas (Horizonte Futuro)")
+    st.markdown("#### Predicciones Generadas (Horizonte Futuro)")
     prediction_col = f"{target_column}_prediction"
     if prediction_col not in predictions.columns:
         st.error(f"La columna de predicciones '{prediction_col}' no está en el DataFrame de predicciones.")
