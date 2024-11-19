@@ -550,5 +550,6 @@ else:
         plt.grid()
         st.pyplot(fig)
 
-    #except Exception as e:
-    #    st.error(f"Error durante la predicción: {e}")
+    except Exception as e:
+        st.write("")
+        #st.error(f"Error durante la predicción: {e}")
