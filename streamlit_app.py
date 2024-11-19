@@ -316,7 +316,7 @@ MODEL_PATH = "./model.safetensors"
 #CONFIG_PATH = "./config.json"
 #Configuración de paths
 MODEL_DIR = "."  # Directorio actual donde están los archivos
-CONFIG_PATH = f"{MODEL_DIR}/config.json"
+#CONFIG_PATH = f"{MODEL_DIR}/config.json"
 OBSERVABLE_SCALER_PATH = "./observable_scaler_0.pkl"
 TARGET_SCALER_PATH = "./target_scaler_0.pkl"
 
@@ -327,7 +327,7 @@ TARGET_SCALER_PATH = "./target_scaler_0.pkl"
 def load_ttm_model():
     try:
         # Load configuration
-        config = TinyTimeMixerForPrediction.from_pretrained(CONFIG_PATH)
+        config = TinyTimeMixerForPrediction.from_pretrained(config_path)
         
         # Load the model
         model = TinyTimeMixerForPrediction.from_pretrained(
@@ -360,7 +360,7 @@ def load_model():
         # Cargar el modelo desde el directorio donde están los archivos
         model = TinyTimeMixerForPrediction.from_pretrained(
             pretrained_model_name_or_path=MODEL_DIR,  # Directorio que contiene los archivos
-            config=CONFIG_PATH  # Ruta al archivo de configuración
+            config=config_path  # Ruta al archivo de configuración
         )
         st.success("Modelo TTM cargado correctamente.")
         return model
@@ -408,7 +408,7 @@ else:
 # Mostrar detalles de la configuración
 st.write("### Configuración del Modelo")
 try:
-    with open(CONFIG_PATH, "r") as f:
+    with open(config_path, "r") as f:
         config = f.read()
         st.json(config)
 except FileNotFoundError:
