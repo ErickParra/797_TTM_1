@@ -447,6 +447,34 @@ if 'ReadTime' in resampled_data.columns:
     resampled_data.rename(columns={'ReadTime': 'New_Date/Time'}, inplace=True)
 
 
+
+# Inspeccionar las columnas y formatos en Streamlit
+st.write("### Inspección de columnas y formatos")
+
+# Mostrar los nombres de las columnas
+st.write("#### Nombres de las columnas")
+st.write(resampled_data.columns.tolist())
+
+# Mostrar los tipos de datos de las columnas
+st.write("#### Tipos de datos de las columnas")
+st.write(resampled_data.dtypes)
+
+# Mostrar los primeros registros del DataFrame
+st.write("#### Primeros registros del DataFrame")
+st.dataframe(resampled_data.head())
+
+# Resumen estadístico de las columnas numéricas
+st.write("#### Resumen estadístico de las columnas numéricas")
+st.dataframe(resampled_data.describe())
+
+# Verificar si hay valores nulos
+st.write("#### Verificación de valores nulos")
+st.write(resampled_data.isnull().sum())
+
+
+
+
+
 # Escalar el dataframe resampled_data
 try:
     # Reemplazar valores nulos por cero
