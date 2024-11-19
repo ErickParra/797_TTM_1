@@ -1,6 +1,7 @@
 streamlit
 pandas
 matplotlib
+plotly
 pyodbc
 numpy
 scikit-learn
