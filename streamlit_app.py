@@ -588,14 +588,17 @@ except Exception as e:
 
 
 
-# Combinar las predicciones con los valores reales basados en las marcas de tiempo
+# Asegurarse de que los valores reales están ordenados por marca de tiempo
+resampled_data = resampled_data.sort_values(by=timestamp_column)
+
+# Combinar las predicciones con los valores reales
 merged_data = pd.merge(
     predictions,
     resampled_data[[timestamp_column, target_column]],  # Filtrar solo las columnas necesarias
     how="left",  # Mantener las predicciones y combinar con valores reales
     on=timestamp_column,
     suffixes=("_pred", "_real")
-).sort_values(by=timestamp_column)
+).sort_values(by=timestamp_column)  # Ordenar después de combinar
 
 # Graficar resultados
 fig, ax = plt.subplots(figsize=(12, 6))
