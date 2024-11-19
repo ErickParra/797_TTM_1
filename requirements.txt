@@ -5,3 +5,4 @@ pyodbc
 numpy
 scikit-learn
 pyodbc
+transformers
