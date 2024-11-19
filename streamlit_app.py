@@ -313,12 +313,12 @@ display_config_file(config_path)
 
 # Paths to the model and configuration
 MODEL_PATH = "./model.safetensors"
-CONFIG_PATH = "./config.json"
-# Configuración de paths
+#CONFIG_PATH = "./config.json"
+#Configuración de paths
 MODEL_DIR = "."  # Directorio actual donde están los archivos
-#CONFIG_PATH = f"{MODEL_DIR}/config.json"
+CONFIG_PATH = f"{MODEL_DIR}/config.json"
 OBSERVABLE_SCALER_PATH = "./observable_scaler_0.pkl"
-ARGET_SCALER_PATH = "./target_scaler_0.pkl"
+TARGET_SCALER_PATH = "./target_scaler_0.pkl"
 
 
 
