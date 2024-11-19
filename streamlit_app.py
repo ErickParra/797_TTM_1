@@ -555,34 +555,32 @@ else:
         #st.error(f"Error durante la predicción: {e}")
 
 
+
+
+
 try:
-    # Gráfico de valores reales y predicciones al futuro
-    st.write("### Gráfico Comparativo: Valores Reales y Predicciones")
-    fig, ax = plt.subplots(figsize=(12, 6))
+    # Gráfico de predicciones generadas (solo horizonte futuro)
+    st.write("### Gráfico de Predicciones (Horizonte Futuro)")
 
-    # Graficar los valores reales (antes del horizonte de predicción)
-    ax.plot(
-        predictions[timestamp_column],
-        predictions[target_column],
-        label="Real",
-        linestyle="-",
-        color="blue",
-    )
+    # Verificar si las columnas requeridas existen en las predicciones
+    prediction_col = f"{target_column}_prediction"
+    if prediction_col not in predictions.columns:
+        st.error(f"La columna de predicciones '{prediction_col}' no está en el DataFrame de predicciones.")
+    else:
+        fig, ax = plt.subplots(figsize=(12, 6))
+        ax.plot(
+            predictions[timestamp_column],
+            predictions[prediction_col],
+            label="Predicción",
+            linestyle="--",
+            color="green",
+        )
+        ax.set_title("Predicciones Generadas (Horizonte Futuro)")
+        ax.set_xlabel("Tiempo")
+        ax.set_ylabel("Valores Predichos")
+        ax.legend()
+        plt.grid()
+        st.pyplot(fig)
 
-    # Graficar las predicciones (horizonte de predicción)
-    ax.plot(
-        predictions[timestamp_column],
-        predictions[f"{target_column}_prediction"],
-        label="Predicción",
-        linestyle="--",
-        color="red",
-    )
-
-    ax.set_title("Valores Reales vs Predicciones al Futuro")
-    ax.set_xlabel("Tiempo")
-    ax.set_ylabel("Valores")
-    ax.legend()
-    plt.grid()
-    st.pyplot(fig)
 except Exception as e:
-    st.error(f"Error al graficar los valores reales y predicciones: {e}")
+    st.error(f"Error al graficar las predicciones: {e}")
