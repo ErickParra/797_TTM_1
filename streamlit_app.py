@@ -269,35 +269,28 @@ import os
 import joblib
 from transformers import AutoConfig, AutoModelForCausalLM
 
-# Ruta base para los archivos
-MODEL_DIR = "."
+import json
+import streamlit as st
 
-# Cargar el modelo TTM
-def load_ttm_model():
-    config_path = os.path.join(MODEL_DIR, "config.json")
-    model_path = os.path.join(MODEL_DIR, "model.safetensors")
+# Ruta al archivo config.json
+config_path = "./config.json"
 
-    # Cargar configuración y modelo
-    config = AutoConfig.from_pretrained(config_path)
-    model = AutoModelForCausalLM.from_pretrained(
-        model_path,
-        config=config,
-        trust_remote_code=True
-    )
-    return model
+# Función para cargar y mostrar el archivo de configuración
+def display_config_file(config_path):
+    try:
+        with open(config_path, "r") as file:
+            config_data = json.load(file)
+        
+        # Mostrar el contenido del archivo en Streamlit
+        st.write("### Contenido del archivo config.json")
+        st.json(config_data)  # Usa st.json para un formato legible
+    except FileNotFoundError:
+        st.error(f"El archivo {config_path} no se encontró.")
+    except json.JSONDecodeError as e:
+        st.error(f"Error al leer el archivo JSON: {e}")
+    except Exception as e:
+        st.error(f"Error inesperado: {e}")
 
-# Cargar los escaladores
-def load_scalers():
-    observable_scaler_path = os.path.join(MODEL_DIR, "observable_scaler_0.pkl")
-    target_scaler_path = os.path.join(MODEL_DIR, "target_scaler_0.pkl")
-    
-    observable_scaler = joblib.load(observable_scaler_path)
-    target_scaler = joblib.load(target_scaler_path)
-    return observable_scaler, target_scaler
-
-# Probar carga del modelo y escaladores
-st.write("Cargando modelo TTM y escaladores...")
-model = load_ttm_model()
-observable_scaler, target_scaler = load_scalers()
-st.success("Modelo y escaladores cargados correctamente.")
+# Llamar a la función para mostrar el archivo
+display_config_file(config_path)
 
