@@ -508,9 +508,9 @@ else:
         normalized_X = observable_scaler.transform(X.values)  # Escalar las features
         normalized_y = target_scaler.transform(y.values.reshape(-1, 1))  # Escalar el target
 
-        # Convertir a tensores
-        input_tensor = torch.tensor(normalized_X).unsqueeze(0)  # Features
-        target_tensor = torch.tensor(normalized_y).unsqueeze(0)  # Target (opcional para evaluación)
+        # Convertir a tensores asegurando el tipo float32
+        input_tensor = torch.tensor(normalized_X, dtype=torch.float32).unsqueeze(0)  # Features
+        target_tensor = torch.tensor(normalized_y, dtype=torch.float32).unsqueeze(0)  # Target (opcional para evaluación)
 
         # Generar predicciones
         with torch.no_grad():
