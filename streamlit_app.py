@@ -588,52 +588,46 @@ except Exception as e:
 
 
 
-try:
-    # Gráfico comparativo de valores reales y predicciones
-    st.write("### Gráfico de Valores Reales vs Predicciones")
+# Combinar las predicciones con los valores reales basados en las marcas de tiempo
+merged_data = pd.merge(
+    predictions,
+    resampled_data[[timestamp_column, target_column]],  # Filtrar solo las columnas necesarias
+    how="left",  # Mantener las predicciones y combinar con valores reales
+    on=timestamp_column,
+    suffixes=("_pred", "_real")
+).sort_values(by=timestamp_column)
 
-    # Validar que las columnas necesarias estén en el DataFrame
-    prediction_col = f"{target_column}_prediction"
-    if prediction_col not in predictions.columns:
-        st.error(f"La columna de predicciones '{prediction_col}' no está en el DataFrame de predicciones.")
-    elif target_column not in resampled_data.columns:
-        st.error(f"La columna de valores reales '{target_column}' no está en el DataFrame original.")
-    else:
-        # Extraer los valores reales desde `resampled_data`
-        real_values = resampled_data[[timestamp_column, target_column]].copy()
+# Graficar resultados
+fig, ax = plt.subplots(figsize=(12, 6))
 
-        # Filtrar valores reales para que coincidan con las predicciones (rango de tiempo común)
-        real_values = real_values[real_values[timestamp_column].isin(predictions[timestamp_column])]
+# Graficar valores reales
+if f"{target_column}" in merged_data.columns:
+    ax.plot(
+        merged_data[timestamp_column],
+        merged_data[target_column],  # Valores reales
+        label="Valor Real",
+        linestyle="-",
+        color="blue",
+        linewidth=1,
+    )
 
-        # Graficar
-        fig, ax = plt.subplots(figsize=(12, 6))
+# Graficar predicciones
+if f"{target_column}_prediction" in merged_data.columns:
+    ax.plot(
+        merged_data[timestamp_column],
+        merged_data[f"{target_column}_prediction"],  # Predicciones
+        label="Predicción",
+        linestyle="--",
+        color="green",
+        linewidth=1,
+    )
 
-        # Plot de valores reales
-        ax.plot(
-            real_values[timestamp_column],
-            real_values[target_column],
-            label="Valor Real",
-            linestyle="-",
-            color="blue",
-        )
+# Ajustar etiquetas y título
+ax.set_title("Valores Reales vs Predicciones")
+ax.set_xlabel("Tiempo")
+ax.set_ylabel("Valores")
+ax.legend()
+plt.grid()
 
-        # Plot de predicciones
-        ax.plot(
-            predictions[timestamp_column],
-            predictions[prediction_col],
-            label="Predicción",
-            linestyle="--",
-            color="green",
-        )
-
-        ax.set_title("Valores Reales vs Predicciones")
-        ax.set_xlabel("Tiempo")
-        ax.set_ylabel("Valores")
-        ax.legend()
-        plt.grid()
-
-        # Mostrar el gráfico en Streamlit
-        st.pyplot(fig)
-
-except Exception as e:
-    st.error(f"Error al graficar los valores reales y predicciones: {e}")
+# Mostrar el gráfico en Streamlit
+st.pyplot(fig)
