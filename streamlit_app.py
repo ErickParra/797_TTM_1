@@ -483,66 +483,63 @@ st.write(resampled_data.isnull().sum())
 
 
 
-# Definir la columna target
-target_col = "Engine Oil Temperature-Engine (Deg F)"  # Cambiar si el target es diferente
+from tsfm_public.toolkit.time_series_forecasting_pipeline import TimeSeriesForecastingPipeline
 
-# Verificar si la columna target está en los datos
-if target_col not in resampled_data.columns:
-    st.error(f"La columna target '{target_col}' no está presente en los datos.")
+# Definir las columnas requeridas
+timestamp_column = "New_Date/Time"  # La columna de tiempo
+target_column = "Engine Oil Temperature-Engine (Deg F)"  # Columna objetivo
+observable_columns = [col for col in resampled_data.columns if col != timestamp_column]
+
+# Verificar que las columnas existan
+if target_column not in resampled_data.columns or timestamp_column not in resampled_data.columns:
+    st.error("Faltan columnas obligatorias en el DataFrame.")
 else:
     try:
-        # Separar features, target y tiempo
-        time_col = "New_Date/Time"  # Columna con las fechas
-        timestamps = resampled_data[time_col]  # Timestamps
-        X = resampled_data.drop(columns=[time_col])  # Features con target incluido
+        # Asegurarse de que los últimos 512 puntos se usan
+        context_length = 512  # Longitud requerida por el modelo
+        if len(resampled_data) > context_length:
+            resampled_data = resampled_data.iloc[-context_length:]
 
-        # Ajustar para los últimos 512 valores más recientes
-        context_length = 512  # Longitud esperada por el modelo
-        if len(X) > context_length:
-            X = X[-context_length:]
-            timestamps = timestamps[-context_length:]
+        # Configurar el pipeline del modelo
+        pipeline = TimeSeriesForecastingPipeline(
+            model=model,
+            id_columns=[],
+            timestamp_column=timestamp_column,
+            target_columns=[target_column],
+            observable_columns=observable_columns,
+            prediction_length=96,  # Longitud del horizonte de predicción
+            context_length=context_length,
+        )
 
-        # Escalar las features asegurando el tipo float32
-        if target_col in X.columns:
-            X_for_scaler = X.drop(columns=[target_col])  # Excluir la columna target para escalar
-        else:
-            X_for_scaler = X
-
-        normalized_X = observable_scaler.transform(X_for_scaler.values.astype('float32'))
-
-        # Agregar nuevamente la columna target como parte del input normalizado
-        if target_col in X.columns:
-            normalized_X = np.hstack(
-                [normalized_X, X[target_col].values.reshape(-1, 1).astype('float32')]
-            )
-
-        # Convertir a tensor asegurando el tipo float32
-        input_tensor = torch.tensor(normalized_X, dtype=torch.float32).unsqueeze(0)
-
-        # Generar predicciones
-        with torch.no_grad():
-            model_output = model(input_tensor)  # Obtener la salida del modelo
-            predictions_tensor = model_output.prediction  # Extraer el tensor de predicciones
-
-        # Convertir el tensor de predicciones a un array numpy
-        descaled_predictions = target_scaler.inverse_transform(predictions_tensor.cpu().numpy().squeeze(0))
-
-        # Crear un DataFrame con las predicciones y el tiempo
-        predictions_df = pd.DataFrame({
-            "New_Date/Time": timestamps.values,  # Timestamps para las predicciones
-            "Predicción": descaled_predictions.flatten()  # Predicciones desescaladas
-        })
+        # Llamar al pipeline para generar predicciones
+        predictions = pipeline(
+            resampled_data,
+            explode_forecasts=True,  # Si queremos expandir predicciones
+            add_known_ground_truth=True,  # Para incluir valores reales junto con las predicciones
+            inverse_scale_outputs=True,  # Para desescalar automáticamente
+        )
 
         # Mostrar resultados
-        st.write("### Resultados de las predicciones")
-        st.dataframe(predictions_df)
+        st.write("### Predicciones generadas")
+        st.dataframe(predictions)
 
         # Graficar resultados
         fig, ax = plt.subplots(figsize=(12, 6))
-        ax.plot(timestamps, predictions_df["Predicción"], label="Predicción", color="red", linestyle="--")
-        ax.set_title("Predicción")
-        ax.set_xlabel("Tiempo")
-        ax.set_ylabel("Temperatura (Deg F)")
+        ax.plot(
+            predictions[timestamp_column],
+            predictions[f"{target_column}_prediction"],
+            label="Predicción",
+            linestyle="--",
+            color="red",
+        )
+        ax.plot(
+            predictions[timestamp_column],
+            predictions[target_column],
+            label="Real",
+            linestyle="-",
+            color="blue",
+        )
+        ax.set_title("Predicción vs Real")
         ax.legend()
         plt.grid()
         st.pyplot(fig)
@@ -552,32 +549,3 @@ else:
 
 
 
-st.write(f"Dimensiones de las features antes de escalar: {X_for_scaler.shape}")
-st.write(f"Dimensiones de las features después de escalar: {normalized_X.shape}")
-
-
-
-
-
-# Alternativas para extraer las predicciones
-try:
-    with torch.no_grad():
-        model_output = model(input_tensor)  # Generar predicciones
-
-    # Prueba las diferentes alternativas
-    if hasattr(model_output, 'logits'):
-        predictions_tensor = model_output.logits
-    elif hasattr(model_output, 'predictions'):
-        predictions_tensor = model_output.predictions
-    elif hasattr(model_output, 'forecasts'):
-        predictions_tensor = model_output.forecasts
-    else:
-        raise AttributeError("No se encontró un atributo válido para las predicciones.")
-
-    # Convertir a numpy y desescalar
-    descaled_predictions = target_scaler.inverse_transform(predictions_tensor.cpu().numpy().squeeze(0))
-    st.write("### Predicciones desescaladas")
-    st.dataframe(descaled_predictions)
-
-except Exception as e:
-    st.error(f"Error al extraer predicciones: {e}")
