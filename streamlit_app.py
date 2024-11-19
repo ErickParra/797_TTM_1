@@ -555,45 +555,34 @@ else:
         #st.error(f"Error durante la predicción: {e}")
 
 
-        # Extraer los últimos 96 puntos para las predicciones y valores reales
 try:
-    # Filtrar los últimos 96 puntos
-    prediction_horizon = 96
-    plot_data = predictions.tail(prediction_horizon)
-
-    # Crear el gráfico
+    # Gráfico de valores reales y predicciones al futuro
+    st.write("### Gráfico Comparativo: Valores Reales y Predicciones")
     fig, ax = plt.subplots(figsize=(12, 6))
 
-    # Graficar valores reales
+    # Graficar los valores reales (antes del horizonte de predicción)
     ax.plot(
-        plot_data[timestamp_column],
-        plot_data[target_column],
-        label="Valores Reales",
+        predictions[timestamp_column],
+        predictions[target_column],
+        label="Real",
         linestyle="-",
         color="blue",
-        alpha=0.7,
     )
 
-    # Graficar predicciones
+    # Graficar las predicciones (horizonte de predicción)
     ax.plot(
-        plot_data[timestamp_column],
-        plot_data[f"{target_column}_prediction"],
-        label="Predicciones",
+        predictions[timestamp_column],
+        predictions[f"{target_column}_prediction"],
+        label="Predicción",
         linestyle="--",
         color="red",
-        alpha=0.7,
     )
 
-    # Configurar el gráfico
-    ax.set_title(f"Valores Reales vs Predicciones: {target_column}")
-    ax.set_xlabel("Fecha/Hora")
-    ax.set_ylabel("Valor")
+    ax.set_title("Valores Reales vs Predicciones al Futuro")
+    ax.set_xlabel("Tiempo")
+    ax.set_ylabel("Valores")
     ax.legend()
-    ax.grid(True)
-
-    # Mostrar el gráfico
-    plt.tight_layout()
+    plt.grid()
     st.pyplot(fig)
-
 except Exception as e:
-    st.error(f"Error al graficar valores reales y predicciones: {e}")
+    st.error(f"Error al graficar los valores reales y predicciones: {e}")
