@@ -474,34 +474,45 @@ st.write(resampled_data.isnull().sum())
 
 
 
+# Definir la columna target
+target_col = "Engine Oil Temperature-Engine (Deg F)"  # Cambiar si el target es diferente
 
-# Escalar el dataframe resampled_data
-try:
-    # Reemplazar valores nulos por cero
-    resampled_data.fillna(0, inplace=True)  # Reemplazar NaN por 0 en el DataFrame
+# Verificar si la columna target está en los datos
+if target_col not in resampled_data.columns:
+    st.error(f"La columna target '{target_col}' no está presente en los datos.")
+else:
+    try:
+        # Separar features, target y tiempo
+        time_col = "New_Date/Time"  # Columna con las fechas
+        X = resampled_data.drop(columns=[time_col, target_col])  # Features
+        y = resampled_data[target_col]  # Target
+        timestamps = resampled_data[time_col]  # Timestamps
 
-    # Normalizar los datos de entrada con el observable scaler
-    normalized_data = observable_scaler.transform(resampled_data.values)
+        # Escalar las features y el target
+        normalized_X = observable_scaler.transform(X.values)  # Escalar las features
+        normalized_y = target_scaler.transform(y.values.reshape(-1, 1))  # Escalar el target
 
-    # Convertir los datos normalizados en un tensor para el modelo
-    input_tensor = torch.tensor(normalized_data).unsqueeze(0)  # Agregar dimensión batch
+        # Convertir a tensores
+        input_tensor = torch.tensor(normalized_X).unsqueeze(0)  # Features
+        target_tensor = torch.tensor(normalized_y).unsqueeze(0)  # Target (opcional para evaluación)
 
-    # Generar predicciones
-    with torch.no_grad():
-        predictions = model(input_tensor)
+        # Generar predicciones
+        with torch.no_grad():
+            predictions = model(input_tensor)
 
-    # Desescalar las predicciones
-    descaled_predictions = target_scaler.inverse_transform(predictions.numpy().squeeze(0))
+        # Desescalar las predicciones
+        descaled_predictions = target_scaler.inverse_transform(predictions.numpy().squeeze(0))
 
-    # Mostrar las predicciones en un DataFrame
-    predictions_df = pd.DataFrame(
-        descaled_predictions, 
-        index=resampled_data.index[-len(descaled_predictions):],  # Asigna el índice correspondiente
-        columns=["Predicción"]
-    )
+        # Crear un DataFrame con las predicciones, el tiempo y los valores reales
+        predictions_df = pd.DataFrame({
+            "New_Date/Time": timestamps[-len(descaled_predictions):],  # Timestamps para las predicciones
+            "Predicción": descaled_predictions.flatten(),  # Predicciones desescaladas
+            "Actual": y[-len(descaled_predictions):].values  # Valores reales
+        })
 
-    st.write("### Predicciones desescaladas")
-    st.dataframe(predictions_df)
+        # Mostrar resultados
+        st.write("### Resultados de las predicciones")
+        st.dataframe(predictions_df)
 
-except Exception as e:
-    st.error(f"Error durante la predicción: {e}")
+    except Exception as e:
+        st.error(f"Error durante la predicción: {e}")
