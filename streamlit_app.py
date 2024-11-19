@@ -445,32 +445,31 @@ if uploaded_file:
 
 # Escalar el dataframe resampled_data
 try:
-    # Asegúrate de que los datos estén limpios y listos para ser escalados
-    if resampled_data.isnull().values.any():
-        st.error("El DataFrame contiene valores nulos. Por favor, limpia los datos antes de escalar.")
-    else:
-        # Normalizar los datos de entrada con el observable scaler
-        normalized_data = observable_scaler.transform(resampled_data.values)
+    # Reemplazar valores nulos por cero
+    resampled_data.fillna(0, inplace=True)  # Reemplazar NaN por 0 en el DataFrame
 
-        # Convertir los datos normalizados en un tensor para el modelo
-        input_tensor = torch.tensor(normalized_data).unsqueeze(0)  # Agregar dimensión batch
+    # Normalizar los datos de entrada con el observable scaler
+    normalized_data = observable_scaler.transform(resampled_data.values)
 
-        # Generar predicciones
-        with torch.no_grad():
-            predictions = model(input_tensor)
+    # Convertir los datos normalizados en un tensor para el modelo
+    input_tensor = torch.tensor(normalized_data).unsqueeze(0)  # Agregar dimensión batch
 
-        # Desescalar las predicciones
-        descaled_predictions = target_scaler.inverse_transform(predictions.numpy().squeeze(0))
+    # Generar predicciones
+    with torch.no_grad():
+        predictions = model(input_tensor)
 
-        # Mostrar las predicciones en un DataFrame
-        predictions_df = pd.DataFrame(
-            descaled_predictions, 
-            index=resampled_data.index[-len(descaled_predictions):],  # Asigna el índice correspondiente
-            columns=["Predicción"]
-        )
-        
-        st.write("### Predicciones desescaladas")
-        st.dataframe(predictions_df)
+    # Desescalar las predicciones
+    descaled_predictions = target_scaler.inverse_transform(predictions.numpy().squeeze(0))
+
+    # Mostrar las predicciones en un DataFrame
+    predictions_df = pd.DataFrame(
+        descaled_predictions, 
+        index=resampled_data.index[-len(descaled_predictions):],  # Asigna el índice correspondiente
+        columns=["Predicción"]
+    )
+
+    st.write("### Predicciones desescaladas")
+    st.dataframe(predictions_df)
 
 except Exception as e:
     st.error(f"Error durante la predicción: {e}")
