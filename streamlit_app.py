@@ -354,28 +354,32 @@ OBSERVABLE_SCALER_PATH = "./observable_scaler_0.pkl"
 TARGET_SCALER_PATH = "./target_scaler_0.pkl"
 
 
-
-# Function to load the TTM model
-@st.cache_resource
-def load_ttm_model():
+# Función para cargar el modelo
+# Función para cargar el modelo finetuneado
+@st.cache(allow_output_mutation=True)
+def load_model():
     try:
-        # Load the model configuration
-        config = AutoConfig.from_pretrained(CONFIG_PATH)
-
-        # Load the model weights
+        # Cargar el modelo utilizando TinyTimeMixerForPrediction y los archivos correspondientes
         model = TinyTimeMixerForPrediction.from_pretrained(
-            pretrained_model_name_or_path=MODEL_PATH,
-            config=config,
-            torch_dtype=torch.float32,
-            low_cpu_mem_usage=True
+            pretrained_model_name_or_path="./model.safetensors",
+            config="./config.json"
         )
-
-        # Set the model to evaluation mode
-        model.eval()
+        st.success("Modelo TTM cargado correctamente.")
         return model
     except Exception as e:
         st.error(f"Error al cargar el modelo TTM: {e}")
         return None
+
+# Llamada para cargar el modelo
+model = load_model()
+
+# Verificación de la carga del modelo
+if model is not None:
+    st.write("### Detalles del modelo cargado")
+    st.write(model)
+else:
+    st.error("No se pudo cargar el modelo. Revisa los archivos y las configuraciones.")
+
 
 
 # Función para cargar los escaladores
