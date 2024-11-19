@@ -669,3 +669,80 @@ with col2:
         ax2.legend()
         plt.grid()
         st.pyplot(fig2)
+
+
+
+
+
+
+import matplotlib.pyplot as plt
+
+# Botón de Refresh para recargar datos
+if st.button("Refresh"):
+    # Aquí deberías incluir la lógica para recargar los datos
+    st.experimental_rerun()  # Reinicia el script de Streamlit para actualizar los gráficos
+
+# Crear dos columnas para los gráficos
+col1, col2 = st.columns(2)
+
+# Líneas fijas (segmentadas) para ambos gráficos
+fixed_lines = [
+    {"value": 230, "color": "orange", "label": "Límite 230"},
+    {"value": 239, "color": "red", "label": "Límite 239"},
+]
+
+# Rango uniforme para el eje Y
+y_min, y_max = 150, 300
+
+# Gráfico de valores reales (en la columna izquierda)
+with col1:
+    st.markdown("###### Valores Reales (Últimos 512 Registros)")
+    fig1, ax1 = plt.subplots(figsize=(6, 4))  # Ajustar tamaño para caber en la columna
+    ax1.plot(
+        real_data[timestamp_column],
+        real_data[target_column],  # Valores reales
+        label="Valor Real",
+        linestyle="-",
+        color="blue",
+        linewidth=1,
+    )
+    
+    # Añadir líneas fijas
+    for line in fixed_lines:
+        ax1.axhline(y=line["value"], color=line["color"], linestyle="--", linewidth=1, label=line["label"])
+    
+    ax1.set_title("Valores Reales")
+    ax1.set_xlabel("Tiempo")
+    ax1.set_ylabel("Valores")
+    ax1.set_ylim(y_min, y_max)  # Escala uniforme en el eje Y
+    ax1.legend()
+    plt.grid()
+    st.pyplot(fig1)
+
+# Gráfico de predicciones generadas (en la columna derecha)
+with col2:
+    st.markdown("###### Predicciones Generadas (Horizonte Futuro)")
+    prediction_col = f"{target_column}_prediction"
+    if prediction_col not in predictions.columns:
+        st.error(f"La columna de predicciones '{prediction_col}' no está en el DataFrame de predicciones.")
+    else:
+        fig2, ax2 = plt.subplots(figsize=(6, 4))  # Ajustar tamaño para caber en la columna
+        ax2.plot(
+            predictions[timestamp_column],
+            predictions[prediction_col],
+            label="Predicción",
+            linestyle="--",
+            color="green",
+        )
+        
+        # Añadir líneas fijas
+        for line in fixed_lines:
+            ax2.axhline(y=line["value"], color=line["color"], linestyle="--", linewidth=1, label=line["label"])
+        
+        ax2.set_title("Predicciones Generadas")
+        ax2.set_xlabel("Tiempo")
+        ax2.set_ylabel("Valores Predichos")
+        ax2.set_ylim(y_min, y_max)  # Escala uniforme en el eje Y
+        ax2.legend()
+        plt.grid()
+        st.pyplot(fig2)
