@@ -14,6 +14,11 @@ import matplotlib.pyplot as plt
 import pyodbc
 from datetime import datetime
 
+from transformers import TinyTimeMixerForPrediction
+from tsfm_public.toolkit.visualization import plot_predictions
+from datetime import datetime, timedelta
+from databricks import sql
+
 
 # Acceder a los secrets almacenados en Streamlit Cloud
 server = st.secrets["server"]
@@ -295,9 +300,9 @@ def display_config_file(config_path):
 display_config_file(config_path)
 
 
-git clone https://github.com/ibm-granite/granite-tsfm.git
-cd granite-tsfm
-pip install .
+#git clone https://github.com/ibm-granite/granite-tsfm.git
+#cd granite-tsfm
+#pip install .
 
 from tsfm_public.models.tinytimemixer.modeling_tinytimemixer import TinyTimeMixerForPrediction
 from transformers import AutoConfig
