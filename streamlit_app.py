@@ -677,25 +677,10 @@ with col2:
 
 import matplotlib.pyplot as plt
 
-# Función para cargar los datos
-@st.cache_data
-def load_real_and_predicted_data():
-    # Simulación: aquí deberías cargar tus datos reales y predicciones desde SQL o archivo
-    real_data = load_real_data()  # Reemplaza con tu función de carga de datos reales
-    predictions = load_prediction_data()  # Reemplaza con tu función de carga de predicciones
-    return real_data, predictions
-
-# Cargar datos (se almacenan en caché para evitar recargas innecesarias)
-try:
-    real_data, predictions = load_real_and_predicted_data()
-except Exception as e:
-    st.error(f"Error al cargar los datos: {e}")
-    st.stop()
-
 # Botón de Refresh para recargar datos
 if st.button("Refresh"):
-    st.cache_data.clear()  # Limpia la caché de datos
-    st.experimental_rerun()  # Reinicia el script para cargar datos actualizados
+    # Aquí deberías incluir la lógica para recargar los datos
+    st.experimental_rerun()  # Reinicia el script de Streamlit para actualizar los gráficos
 
 # Crear dos columnas para los gráficos
 col1, col2 = st.columns(2)
