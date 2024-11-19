@@ -44,12 +44,18 @@ def load_data(query, conn_str):
 conn_str = f'DRIVER={{ODBC Driver 17 for SQL Server}};SERVER={server};DATABASE={database};UID={username};PWD={password}'
 
 
-# Lista de equipos disponibles
-available_equipments = ['C17', 'C18', 'C19', 'C20', 'C21', 'C22', 'C23','C24', 'C25', 'C36', 'C34', 'C35', 'C36', 'C37', 'C38', 'C39', 'C40', 'C41','C42','C43', 'C45', 'C48']
+# Inicializar el valor por defecto en session_state si no existe
+if "selected_equipment" not in st.session_state:
+    st.session_state["selected_equipment"] = "C17"  # Valor inicial por defecto
 
-# Selector de equipo
-selected_equipment = st.selectbox("Seleccione el equipo:", available_equipments, index=0)
-
+# Selector inicial basado en session_state
+st.write("### Selección de Equipo Inicial")
+selected_equipment = st.selectbox(
+    "Seleccione el equipo (inicial):",
+    ['C17', 'C18', 'C19', 'C20', 'C21', 'C22', 'C23',  'C24', 'C25', 'C32', 'C34', 'C26', 'C37', 'C38', 'C39', 'C40', 'C41', 'C42', 'C43', 'C44', 'C45', 'C46', 'C47', 'C48'],
+    index=0 if st.session_state["selected_equipment"] == "C17" else 
+           ['C17', 'C18', 'C19', 'C20', 'C21', 'C22', 'C23',  'C24', 'C25', 'C32', 'C34', 'C26', 'C37', 'C38', 'C39', 'C40', 'C41', 'C42', 'C43', 'C44', 'C45', 'C46', 'C47', 'C48'].index(st.session_state["selected_equipment"])
+)
 # Construcción dinámica de la consulta SQL
 query = f"""
 SELECT
@@ -638,6 +644,35 @@ st.pyplot(fig)
 
 
 
+
+
+
+
+# Cargar datos según el equipo seleccionado
+with st.spinner(f"Cargando datos para el equipo: {selected_equipment}..."):
+    data = load_data(query, conn_str)
+
+# Mostrar datos
+if data.empty:
+    st.error(f"No se encontraron datos para el equipo seleccionado: {selected_equipment}.")
+else:
+    st.success("Datos cargados correctamente.")
+    st.write(f"### Datos del Equipo: {selected_equipment}")
+    st.dataframe(data)
+
+# Selector final para cambiar el equipo seleccionado
+st.write("### Cambiar Equipo")
+new_selected_equipment = st.selectbox(
+    "Seleccione un nuevo equipo (para cambiar el inicial):",
+    ['C17', 'C18', 'C19', 'C20', 'C21', 'C22', 'C23',  'C24', 'C25', 'C32', 'C34', 'C26', 'C37', 'C38', 'C39', 'C40', 'C41', 'C42', 'C43', 'C44', 'C45', 'C46', 'C47', 'C48'],
+    index=0 if st.session_state["selected_equipment"] == "C17" else 
+           ['C17', 'C18', 'C19', 'C20', 'C21', 'C22', 'C23',  'C24', 'C25', 'C32', 'C34', 'C26', 'C37', 'C38', 'C39', 'C40', 'C41', 'C42', 'C43', 'C44', 'C45', 'C46', 'C47', 'C48'].index(st.session_state["selected_equipment"])
+)
+
+# Actualizar session_state si el valor cambia
+if new_selected_equipment != st.session_state["selected_equipment"]:
+    st.session_state["selected_equipment"] = new_selected_equipment
+    st.experimental_rerun()  # Refrescar la app para actualizar el selector inicial
 
 
 
