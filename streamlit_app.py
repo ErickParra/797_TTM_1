@@ -486,7 +486,7 @@ st.write(resampled_data.isnull().sum())
 from tsfm_public.toolkit.time_series_forecasting_pipeline import TimeSeriesForecastingPipeline
 
 # Definir las columnas requeridas
-timestamp_column = "New_Date/Time"  # La columna de tiempo
+timestamp_column = "New_Date/Time"  # Columna de tiempo
 target_column = "Engine Oil Temperature-Engine (Deg F)"  # Columna objetivo
 observable_columns = [col for col in resampled_data.columns if col != timestamp_column]
 
@@ -500,15 +500,19 @@ else:
         if len(resampled_data) > context_length:
             resampled_data = resampled_data.iloc[-context_length:]
 
+        # Configurar la frecuencia temporal (asegúrate de que coincida con tus datos)
+        freq = "30S"  # Cambia esto según el intervalo de muestreo de tu serie temporal
+
         # Configurar el pipeline del modelo
         pipeline = TimeSeriesForecastingPipeline(
             model=model,
-            id_columns=[],
+            id_columns=[],  # Dejar vacío si no hay identificadores únicos
             timestamp_column=timestamp_column,
             target_columns=[target_column],
             observable_columns=observable_columns,
             prediction_length=96,  # Longitud del horizonte de predicción
             context_length=context_length,
+            freq=freq,  # Frecuencia de la serie temporal
         )
 
         # Llamar al pipeline para generar predicciones
@@ -546,6 +550,4 @@ else:
 
     except Exception as e:
         st.error(f"Error durante la predicción: {e}")
-
-
 
