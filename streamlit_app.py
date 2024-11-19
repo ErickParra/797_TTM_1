@@ -553,3 +553,47 @@ else:
     except Exception as e:
         st.write("")
         #st.error(f"Error durante la predicción: {e}")
+
+
+        # Extraer los últimos 96 puntos para las predicciones y valores reales
+try:
+    # Filtrar los últimos 96 puntos
+    prediction_horizon = 96
+    plot_data = predictions.tail(prediction_horizon)
+
+    # Crear el gráfico
+    fig, ax = plt.subplots(figsize=(12, 6))
+
+    # Graficar valores reales
+    ax.plot(
+        plot_data[timestamp_column],
+        plot_data[target_column],
+        label="Valores Reales",
+        linestyle="-",
+        color="blue",
+        alpha=0.7,
+    )
+
+    # Graficar predicciones
+    ax.plot(
+        plot_data[timestamp_column],
+        plot_data[f"{target_column}_prediction"],
+        label="Predicciones",
+        linestyle="--",
+        color="red",
+        alpha=0.7,
+    )
+
+    # Configurar el gráfico
+    ax.set_title(f"Valores Reales vs Predicciones: {target_column}")
+    ax.set_xlabel("Fecha/Hora")
+    ax.set_ylabel("Valor")
+    ax.legend()
+    ax.grid(True)
+
+    # Mostrar el gráfico
+    plt.tight_layout()
+    st.pyplot(fig)
+
+except Exception as e:
+    st.error(f"Error al graficar valores reales y predicciones: {e}")
