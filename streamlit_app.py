@@ -591,42 +591,28 @@ except Exception as e:
 # Asegurarse de que los valores reales están ordenados por marca de tiempo
 resampled_data = resampled_data.sort_values(by=timestamp_column)
 
-# Combinar las predicciones con los valores reales
-merged_data = pd.merge(
-    predictions,
-    resampled_data[[timestamp_column, target_column]],  # Filtrar solo las columnas necesarias
-    how="left",  # Mantener las predicciones y combinar con valores reales
-    on=timestamp_column,
-    suffixes=("_pred", "_real")
-).sort_values(by=timestamp_column)  # Ordenar después de combinar
+# Filtrar los últimos 512 registros
+context_length = 512
+if len(resampled_data) > context_length:
+    real_data = resampled_data.iloc[-context_length:]
+else:
+    real_data = resampled_data
 
-# Graficar resultados
+# Graficar solo los valores reales
 fig, ax = plt.subplots(figsize=(12, 6))
 
 # Graficar valores reales
-if f"{target_column}" in merged_data.columns:
-    ax.plot(
-        merged_data[timestamp_column],
-        merged_data[target_column],  # Valores reales
-        label="Valor Real",
-        linestyle="-",
-        color="blue",
-        linewidth=1,
-    )
-
-# Graficar predicciones
-if f"{target_column}_prediction" in merged_data.columns:
-    ax.plot(
-        merged_data[timestamp_column],
-        merged_data[f"{target_column}_prediction"],  # Predicciones
-        label="Predicción",
-        linestyle="--",
-        color="green",
-        linewidth=1,
-    )
+ax.plot(
+    real_data[timestamp_column],
+    real_data[target_column],  # Valores reales
+    label="Valor Real",
+    linestyle="-",
+    color="blue",
+    linewidth=1,
+)
 
 # Ajustar etiquetas y título
-ax.set_title("Valores Reales vs Predicciones")
+ax.set_title("Valores Reales (Últimos 512 Registros)")
 ax.set_xlabel("Tiempo")
 ax.set_ylabel("Valores")
 ax.legend()
