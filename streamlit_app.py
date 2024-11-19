@@ -144,7 +144,7 @@ else:
     filtered_data = filtered_data.sort_values(by='ReadTime')
 
     # Graficar datos
-    st.write(f"### Gráfico de {selected_param} para el equipo C46")
+    st.write(f"### Gráfico de {selected_param} para el equipo  {selected_equipment}")
     fig, ax = plt.subplots(figsize=(12, 6))
 
     if not filtered_data.empty:
@@ -155,7 +155,7 @@ else:
             color='blue', 
             linewidth=1
         )
-        ax.set_title(f"{selected_param} para C46")
+        ax.set_title(f"{selected_param} para  {selected_equipment}")
         ax.set_xlabel("Tiempo")
         ax.set_ylabel("Valor")
         ax.legend()
@@ -580,7 +580,7 @@ y_min, y_max = 150, 245
 
 try:
     # Gráfico de predicciones generadas (solo horizonte futuro)
-    st.write("### Gráfico de Predicciones (Horizonte Futuro)")
+    st.write("### Gráfico de Predicciones (Horizonte Futuro) {selected_equipment}")
 
     # Verificar si las columnas requeridas existen en las predicciones
     prediction_col = f"{target_column}_prediction"
@@ -595,7 +595,7 @@ try:
             linestyle="--",
             color="green",
         )
-        ax.set_title("Predicciones Generadas (Horizonte Futuro)")
+        ax.set_title("Predicciones Generadas (Horizonte Futuro) {selected_equipment}")
         ax.set_xlabel("Tiempo")
         ax.set_ylabel("Valores Predichos")
         ax.set_ylim(y_min, y_max)  # Escala uniforme en el eje Y
@@ -702,7 +702,7 @@ col1, col2 = st.columns(2)
 
 # Gráfico de valores reales (en la columna izquierda)
 with col1:
-    st.markdown("###### Valores Reales (Últimos 128 Registros)")
+    st.markdown("###### Valores Reales (Últimos 128 Registros) {selected_equipment}")
     fig1, ax1 = plt.subplots(figsize=(6, 4))  # Ajustar tamaño para caber en la columna
     ax1.plot(
         real_data[timestamp_column],
@@ -727,7 +727,7 @@ with col1:
 
 # Gráfico de predicciones generadas (en la columna derecha)
 with col2:
-    st.markdown("###### Predicciones (Horizonte 48 minutos)")
+    st.markdown("###### Predicciones (Horizonte 48 minutos) {selected_equipment}")
     prediction_col = f"{target_column}_prediction"
     if prediction_col not in predictions.columns:
         st.error(f"La columna de predicciones '{prediction_col}' no está en el DataFrame de predicciones.")
