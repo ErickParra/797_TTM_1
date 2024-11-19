@@ -295,55 +295,96 @@ def display_config_file(config_path):
 display_config_file(config_path)
 
 
+
+
 import streamlit as st
-from transformers import AutoConfig, AutoModelForCausalLM
+from transformers import AutoConfig, PreTrainedModel
 import torch
-import json
+import pandas as pd
+import joblib
+import os
 
-# Ruta de los archivos necesarios
-config_path = "./config.json"
-model_path = "./model.safetensors"
-observable_scaler_path = "./observable_scaler_0.pkl"
-target_scaler_path = "./target_scaler_0.pkl"
+# Configuración de paths
+MODEL_PATH = "./model.safetensors"
+CONFIG_PATH = "./config.json"
+OBSERVABLE_SCALER_PATH = "./observable_scaler_0.pkl"
+TARGET_SCALER_PATH = "./target_scaler_0.pkl"
 
-# Paso 2: Mostrar configuración
-def load_and_display_config(config_path):
-    try:
-        with open(config_path, "r") as file:
-            config_data = json.load(file)
-        st.write("### Configuración cargada")
-        st.json(config_data)
-        return config_data
-    except Exception as e:
-        st.error(f"Error al cargar el archivo de configuración: {e}")
-        return None
-
-config_data = load_and_display_config(config_path)
-
-# Paso 3: Cargar el modelo TTM
+# Función para cargar el modelo TTM
 @st.cache_resource
-def load_ttm_model(config_path, model_path):
+def load_ttm_model():
     try:
-        # Cargar la configuración del modelo
-        config = AutoConfig.from_pretrained(config_path)
-        st.success("Configuración del modelo cargada con éxito.")
-
-        # Cargar el modelo con la configuración
-        model = AutoModelForCausalLM.from_pretrained(model_path, config=config, torch_dtype=torch.float32)
-        model.eval()  # Cambiar a modo de evaluación
-        st.success("Modelo TTM cargado con éxito.")
+        config = AutoConfig.from_pretrained(CONFIG_PATH)
+        model = PreTrainedModel.from_pretrained(
+            pretrained_model_name_or_path=MODEL_PATH,
+            config=config,
+            from_tf=False,
+            torch_dtype=torch.float32,
+            low_cpu_mem_usage=True,
+        )
+        model.eval()  # Configurar el modelo en modo evaluación
         return model
     except Exception as e:
         st.error(f"Error al cargar el modelo: {e}")
         return None
 
-# Verificar si el modelo se carga correctamente
-if config_data:
-    model = load_ttm_model(config_path, model_path)
+# Función para cargar los escaladores
+@st.cache_resource
+def load_scalers():
+    try:
+        observable_scaler = joblib.load(OBSERVABLE_SCALER_PATH)
+        target_scaler = joblib.load(TARGET_SCALER_PATH)
+        return observable_scaler, target_scaler
+    except Exception as e:
+        st.error(f"Error al cargar los escaladores: {e}")
+        return None, None
 
-# Paso 4: Mostrar mensaje si el modelo se carga correctamente
-if model:
-    st.write("### El modelo TTM está listo para usarse.")
+# Cargar el modelo y escaladores
+model = load_ttm_model()
+observable_scaler, target_scaler = load_scalers()
+
+# Verificar la carga exitosa
+if model is not None:
+    st.success("Modelo TTM cargado correctamente.")
 else:
-    st.error("No se pudo cargar el modelo TTM. Verifica los archivos y la configuración.")
+    st.error("No se pudo cargar el modelo TTM. Verifica los archivos.")
 
+if observable_scaler is not None and target_scaler is not None:
+    st.success("Escaladores cargados correctamente.")
+else:
+    st.error("No se pudieron cargar los escaladores.")
+
+# Mostrar detalles de la configuración
+st.write("### Configuración del Modelo")
+try:
+    with open(CONFIG_PATH, "r") as f:
+        config = f.read()
+        st.json(config)
+except FileNotFoundError:
+    st.error("Archivo de configuración no encontrado.")
+
+# Simular predicción con datos de entrada
+st.write("### Simulación de predicciones")
+uploaded_file = st.file_uploader("Sube un archivo CSV con datos de entrada", type="csv")
+if uploaded_file:
+    input_data = pd.read_csv(uploaded_file)
+    st.write("Datos de entrada cargados:")
+    st.dataframe(input_data)
+
+    try:
+        # Normalizar los datos de entrada con el observable scaler
+        normalized_data = observable_scaler.transform(input_data.values)
+
+        # Convertir datos a tensor para alimentar al modelo
+        input_tensor = torch.tensor(normalized_data).unsqueeze(0)
+
+        # Generar predicciones
+        with torch.no_grad():
+            predictions = model(input_tensor)
+
+        # Desescalar las predicciones
+        descaled_predictions = target_scaler.inverse_transform(predictions.numpy().squeeze(0))
+        st.write("Predicciones desescaladas:")
+        st.dataframe(descaled_predictions)
+    except Exception as e:
+        st.error(f"Error durante la predicción: {e}")
