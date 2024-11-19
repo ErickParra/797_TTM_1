@@ -640,8 +640,7 @@ st.pyplot(fig)
 
 
 
-# Selector de equipo
-selected_equipment = st.selectbox("Seleccione el equipo:", available_equipments, index=0)
+
 
 
 # Botón de Refresh para recargar datos
