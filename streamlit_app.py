@@ -640,17 +640,9 @@ st.pyplot(fig)
 
 
 
-# Recargar datos para el equipo seleccionado
-with st.spinner(f"Cargando datos para el equipo: {selected_equipment}..."):
-    data = load_data(query, conn_str)
-
-# Verificar si hay datos cargados
-if data.empty:
-    st.error("No se encontraron datos para el equipo seleccionado.")
-else:
-    st.success("Datos cargados correctamente.")
-    st.write(f"### Datos del Equipo: {selected_equipment}")
-    st.dataframe(data)
+# Selector de equipo justo antes de los gráficos finales
+st.write("### Selección de Equipo para los Gráficos")
+selected_equipment = st.selectbox("Seleccione el equipo:", available_equipments, index=0)
 
 
 # Botón de Refresh para recargar datos
