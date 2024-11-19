@@ -555,7 +555,7 @@ else:
         #st.error(f"Error durante la predicción: {e}")
 
 
-
+y_min, y_max = 150, 245
 
 
 try:
@@ -578,6 +578,7 @@ try:
         ax.set_title("Predicciones Generadas (Horizonte Futuro)")
         ax.set_xlabel("Tiempo")
         ax.set_ylabel("Valores Predichos")
+        ax.set_ylim(y_min, y_max)  # Escala uniforme en el eje Y
         ax.legend()
         plt.grid()
         st.pyplot(fig)
@@ -615,6 +616,7 @@ ax.plot(
 ax.set_title("Valores Reales (Últimos 512 Registros)")
 ax.set_xlabel("Tiempo")
 ax.set_ylabel("Valores")
+ax.set_ylim(y_min, y_max)  # Escala uniforme en el eje Y
 ax.legend()
 plt.grid()
 
