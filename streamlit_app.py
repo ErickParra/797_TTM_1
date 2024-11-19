@@ -521,10 +521,11 @@ else:
 
         # Generar predicciones
         with torch.no_grad():
-            predictions = model(input_tensor)
+            model_output = model(input_tensor)  # Obtener la salida del modelo
+            predictions_tensor = model_output.prediction  # Extraer el tensor de predicciones
 
-        # Desescalar las predicciones
-        descaled_predictions = target_scaler.inverse_transform(predictions.numpy().squeeze(0))
+        # Convertir el tensor de predicciones a un array numpy
+        descaled_predictions = target_scaler.inverse_transform(predictions_tensor.cpu().numpy().squeeze(0))
 
         # Crear un DataFrame con las predicciones y el tiempo
         predictions_df = pd.DataFrame({
@@ -548,6 +549,7 @@ else:
 
     except Exception as e:
         st.error(f"Error durante la predicción: {e}")
+
 
 
 st.write(f"Dimensiones de las features antes de escalar: {X_for_scaler.shape}")
