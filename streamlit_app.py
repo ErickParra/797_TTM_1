@@ -261,3 +261,43 @@ resampled_data = resampled_data.sort_index(ascending=False)
 # Mostrar datos procesados
 st.write("### Datos procesados después de conversiones y renombrados")
 st.dataframe(resampled_data)
+
+
+
+
+import os
+import joblib
+from transformers import AutoConfig, AutoModelForCausalLM
+
+# Ruta base para los archivos
+MODEL_DIR = "."
+
+# Cargar el modelo TTM
+def load_ttm_model():
+    config_path = os.path.join(MODEL_DIR, "config.json")
+    model_path = os.path.join(MODEL_DIR, "model.safetensors")
+
+    # Cargar configuración y modelo
+    config = AutoConfig.from_pretrained(config_path)
+    model = AutoModelForCausalLM.from_pretrained(
+        model_path,
+        config=config,
+        trust_remote_code=True
+    )
+    return model
+
+# Cargar los escaladores
+def load_scalers():
+    observable_scaler_path = os.path.join(MODEL_DIR, "observable_scaler_0.pkl")
+    target_scaler_path = os.path.join(MODEL_DIR, "target_scaler_0.pkl")
+    
+    observable_scaler = joblib.load(observable_scaler_path)
+    target_scaler = joblib.load(target_scaler_path)
+    return observable_scaler, target_scaler
+
+# Probar carga del modelo y escaladores
+st.write("Cargando modelo TTM y escaladores...")
+model = load_ttm_model()
+observable_scaler, target_scaler = load_scalers()
+st.success("Modelo y escaladores cargados correctamente.")
+
