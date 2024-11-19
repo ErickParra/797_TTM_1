@@ -295,7 +295,6 @@ def display_config_file(config_path):
 display_config_file(config_path)
 
 
-
 import streamlit as st
 from transformers import AutoConfig, AutoModelForCausalLM
 import torch
