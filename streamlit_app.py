@@ -493,24 +493,31 @@ else:
     try:
         # Separar features, target y tiempo
         time_col = "New_Date/Time"  # Columna con las fechas
-        X = resampled_data.drop(columns=[time_col, target_col])  # Features
-        y = resampled_data[target_col]  # Target
         timestamps = resampled_data[time_col]  # Timestamps
+        X = resampled_data.drop(columns=[time_col])  # Features con target incluido
 
         # Ajustar para los últimos 512 valores más recientes
         context_length = 512  # Longitud esperada por el modelo
         if len(X) > context_length:
             X = X[-context_length:]
-            y = y[-context_length:]
             timestamps = timestamps[-context_length:]
 
-        # Escalar las features y el target
-        normalized_X = observable_scaler.transform(X.values)  # Escalar las features
-        normalized_y = target_scaler.transform(y.values.reshape(-1, 1))  # Escalar el target
+        # Escalar las features asegurando el tipo float32
+        if target_col in X.columns:
+            X_for_scaler = X.drop(columns=[target_col])  # Excluir la columna target para escalar
+        else:
+            X_for_scaler = X
 
-        # Convertir a tensores asegurando el tipo float32
-        input_tensor = torch.tensor(normalized_X, dtype=torch.float32).unsqueeze(0)  # Features
-        target_tensor = torch.tensor(normalized_y, dtype=torch.float32).unsqueeze(0)  # Target (opcional para evaluación)
+        normalized_X = observable_scaler.transform(X_for_scaler.values.astype('float32'))
+
+        # Agregar nuevamente la columna target como parte del input normalizado
+        if target_col in X.columns:
+            normalized_X = np.hstack(
+                [normalized_X, X[target_col].values.reshape(-1, 1).astype('float32')]
+            )
+
+        # Convertir a tensor asegurando el tipo float32
+        input_tensor = torch.tensor(normalized_X, dtype=torch.float32).unsqueeze(0)
 
         # Generar predicciones
         with torch.no_grad():
@@ -519,11 +526,10 @@ else:
         # Desescalar las predicciones
         descaled_predictions = target_scaler.inverse_transform(predictions.numpy().squeeze(0))
 
-        # Crear un DataFrame con las predicciones, el tiempo y los valores reales
+        # Crear un DataFrame con las predicciones y el tiempo
         predictions_df = pd.DataFrame({
             "New_Date/Time": timestamps.values,  # Timestamps para las predicciones
-            "Predicción": descaled_predictions.flatten(),  # Predicciones desescaladas
-            "Actual": y.values  # Valores reales
+            "Predicción": descaled_predictions.flatten()  # Predicciones desescaladas
         })
 
         # Mostrar resultados
@@ -532,9 +538,8 @@ else:
 
         # Graficar resultados
         fig, ax = plt.subplots(figsize=(12, 6))
-        ax.plot(timestamps, y.values, label="Actual", color="blue", linewidth=1)
-        ax.plot(timestamps, descaled_predictions.flatten(), label="Predicción", color="red", linestyle="--")
-        ax.set_title("Predicción vs Actual")
+        ax.plot(timestamps, predictions_df["Predicción"], label="Predicción", color="red", linestyle="--")
+        ax.set_title("Predicción")
         ax.set_xlabel("Tiempo")
         ax.set_ylabel("Temperatura (Deg F)")
         ax.legend()
@@ -543,3 +548,7 @@ else:
 
     except Exception as e:
         st.error(f"Error durante la predicción: {e}")
+
+
+st.write(f"Dimensiones de las features antes de escalar: {X_for_scaler.shape}")
+st.write(f"Dimensiones de las features después de escalar: {normalized_X.shape}")
