@@ -483,7 +483,6 @@ st.write(resampled_data.isnull().sum())
 
 
 
-
 # Definir la columna target
 target_col = "Engine Oil Temperature-Engine (Deg F)"  # Cambiar si el target es diferente
 
@@ -497,6 +496,13 @@ else:
         X = resampled_data.drop(columns=[time_col, target_col])  # Features
         y = resampled_data[target_col]  # Target
         timestamps = resampled_data[time_col]  # Timestamps
+
+        # Ajustar para los últimos 512 valores más recientes
+        context_length = 512  # Longitud esperada por el modelo
+        if len(X) > context_length:
+            X = X[-context_length:]
+            y = y[-context_length:]
+            timestamps = timestamps[-context_length:]
 
         # Escalar las features y el target
         normalized_X = observable_scaler.transform(X.values)  # Escalar las features
@@ -515,14 +521,25 @@ else:
 
         # Crear un DataFrame con las predicciones, el tiempo y los valores reales
         predictions_df = pd.DataFrame({
-            "New_Date/Time": timestamps[-len(descaled_predictions):],  # Timestamps para las predicciones
+            "New_Date/Time": timestamps.values,  # Timestamps para las predicciones
             "Predicción": descaled_predictions.flatten(),  # Predicciones desescaladas
-            "Actual": y[-len(descaled_predictions):].values  # Valores reales
+            "Actual": y.values  # Valores reales
         })
 
         # Mostrar resultados
         st.write("### Resultados de las predicciones")
         st.dataframe(predictions_df)
+
+        # Graficar resultados
+        fig, ax = plt.subplots(figsize=(12, 6))
+        ax.plot(timestamps, y.values, label="Actual", color="blue", linewidth=1)
+        ax.plot(timestamps, descaled_predictions.flatten(), label="Predicción", color="red", linestyle="--")
+        ax.set_title("Predicción vs Actual")
+        ax.set_xlabel("Tiempo")
+        ax.set_ylabel("Temperatura (Deg F)")
+        ax.legend()
+        plt.grid()
+        st.pyplot(fig)
 
     except Exception as e:
         st.error(f"Error durante la predicción: {e}")
