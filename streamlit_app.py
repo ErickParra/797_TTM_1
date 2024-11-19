@@ -631,7 +631,7 @@ col1, col2 = st.columns(2)
 
 # Gráfico de valores reales (en la columna izquierda)
 with col1:
-    st.write("### Valores Reales (Últimos 512 Registros)")
+    st.markdown("#### Valores Reales (Últimos 512 Registros)")
     fig1, ax1 = plt.subplots(figsize=(6, 4))  # Ajustar tamaño para caber en la columna
     ax1.plot(
         real_data[timestamp_column],
