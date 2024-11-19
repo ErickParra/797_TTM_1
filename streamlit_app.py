@@ -294,3 +294,57 @@ def display_config_file(config_path):
 # Llamar a la función para mostrar el archivo
 display_config_file(config_path)
 
+
+
+import streamlit as st
+from transformers import AutoConfig, AutoModelForCausalLM
+import torch
+import json
+
+# Ruta de los archivos necesarios
+config_path = "./config.json"
+model_path = "./model.safetensors"
+observable_scaler_path = "./observable_scaler_0.pkl"
+target_scaler_path = "./target_scaler_0.pkl"
+
+# Paso 2: Mostrar configuración
+def load_and_display_config(config_path):
+    try:
+        with open(config_path, "r") as file:
+            config_data = json.load(file)
+        st.write("### Configuración cargada")
+        st.json(config_data)
+        return config_data
+    except Exception as e:
+        st.error(f"Error al cargar el archivo de configuración: {e}")
+        return None
+
+config_data = load_and_display_config(config_path)
+
+# Paso 3: Cargar el modelo TTM
+@st.cache_resource
+def load_ttm_model(config_path, model_path):
+    try:
+        # Cargar la configuración del modelo
+        config = AutoConfig.from_pretrained(config_path)
+        st.success("Configuración del modelo cargada con éxito.")
+
+        # Cargar el modelo con la configuración
+        model = AutoModelForCausalLM.from_pretrained(model_path, config=config, torch_dtype=torch.float32)
+        model.eval()  # Cambiar a modo de evaluación
+        st.success("Modelo TTM cargado con éxito.")
+        return model
+    except Exception as e:
+        st.error(f"Error al cargar el modelo: {e}")
+        return None
+
+# Verificar si el modelo se carga correctamente
+if config_data:
+    model = load_ttm_model(config_path, model_path)
+
+# Paso 4: Mostrar mensaje si el modelo se carga correctamente
+if model:
+    st.write("### El modelo TTM está listo para usarse.")
+else:
+    st.error("No se pudo cargar el modelo TTM. Verifica los archivos y la configuración.")
+
