@@ -657,29 +657,29 @@ st.pyplot(fig)
 
 
 
-with st.spinner(f"Cargando datos para el equipo: {st.session_state['selected_equipment']}..."):
-    data = load_data(query, conn_str)
+# with st.spinner(f"Cargando datos para el equipo: {st.session_state['selected_equipment']}..."):
+#     data = load_data(query, conn_str)
 
-if data.empty:
-    st.error(f"No se encontraron datos para el equipo seleccionado: {st.session_state['selected_equipment']}.")
-else:
-    st.success("Datos cargados correctamente.")
-    st.write(f"### Datos del Equipo: {st.session_state['selected_equipment']}")
-    st.dataframe(data)
+# if data.empty:
+#     st.error(f"No se encontraron datos para el equipo seleccionado: {st.session_state['selected_equipment']}.")
+# else:
+#     st.success("Datos cargados correctamente.")
+#     st.write(f"### Datos del Equipo: {st.session_state['selected_equipment']}")
+#     st.dataframe(data)
 
 # Selector final para cambiar el equipo seleccionado
-st.write("### Cambiar Equipo (Selector Final)")
-new_selected_equipment = st.selectbox(
-    "Seleccione un nuevo equipo (final):",
-    available_equipments,
-    index=available_equipments.index(st.session_state["selected_equipment"]),
-    key="final_selector"
-)
+# st.write("### Cambiar Equipo (Selector Final)")
+# new_selected_equipment = st.selectbox(
+#     "Seleccione un nuevo equipo (final):",
+#     available_equipments,
+#     index=available_equipments.index(st.session_state["selected_equipment"]),
+#     key="final_selector"
+# )
 
 # Sincronizar selector inicial con el final
-if st.session_state["selected_equipment"] != new_selected_equipment:
-    st.session_state["selected_equipment"] = new_selected_equipment
-    st.experimental_rerun()  # Recargar la app para sincronizar
+# if st.session_state["selected_equipment"] != new_selected_equipment:
+#     st.session_state["selected_equipment"] = new_selected_equipment
+#     st.experimental_rerun()  # Recargar la app para sincronizar
 
 
 
