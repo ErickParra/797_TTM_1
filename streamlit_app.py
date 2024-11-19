@@ -310,9 +310,6 @@ display_config_file(config_path)
 
 # Función para cargar el modelo TTM
 # Function to load the TTM model
-from tsfm_public.models import TinyTimeMixerForPrediction
-import torch
-import streamlit as st
 
 # Paths to the model and configuration
 MODEL_PATH = "./model.safetensors"
