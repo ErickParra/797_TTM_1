@@ -675,15 +675,14 @@ with col2:
 
 
 
-import matplotlib.pyplot as plt
+
+
+
 
 # Botón de Refresh para recargar datos
 if st.button("Refresh"):
     # Aquí deberías incluir la lógica para recargar los datos
     st.experimental_rerun()  # Reinicia el script de Streamlit para actualizar los gráficos
-
-# Crear dos columnas para los gráficos
-col1, col2 = st.columns(2)
 
 # Líneas fijas (segmentadas) para ambos gráficos
 fixed_lines = [
@@ -693,6 +692,9 @@ fixed_lines = [
 
 # Rango uniforme para el eje Y
 y_min, y_max = 150, 245
+
+# Crear dos columnas para los gráficos
+col1, col2 = st.columns(2)
 
 # Gráfico de valores reales (en la columna izquierda)
 with col1:
@@ -711,11 +713,11 @@ with col1:
     for line in fixed_lines:
         ax1.axhline(y=line["value"], color=line["color"], linestyle="--", linewidth=1, label=line["label"])
     
-    ax1.set_title("Valores Reales")
-    ax1.set_xlabel("Tiempo")
-    ax1.set_ylabel("Valores")
+    ax1.set_title("Valores Reales", fontsize=12)
+    ax1.set_xlabel("Tiempo", fontsize=10)
+    ax1.set_ylabel("Valores", fontsize=10)
     ax1.set_ylim(y_min, y_max)  # Escala uniforme en el eje Y
-    ax1.legend()
+    ax1.legend(fontsize=8)
     plt.grid()
     st.pyplot(fig1)
 
@@ -739,10 +741,10 @@ with col2:
         for line in fixed_lines:
             ax2.axhline(y=line["value"], color=line["color"], linestyle="--", linewidth=1, label=line["label"])
         
-        ax2.set_title("Predicciones Generadas")
-        ax2.set_xlabel("Tiempo")
-        ax2.set_ylabel("Valores Predichos")
+        ax2.set_title("Predicciones Generadas", fontsize=12)
+        ax2.set_xlabel("Tiempo", fontsize=10)
+        ax2.set_ylabel("Valores Predichos", fontsize=10)
         ax2.set_ylim(y_min, y_max)  # Escala uniforme en el eje Y
-        ax2.legend()
+        ax2.legend(fontsize=8)
         plt.grid()
         st.pyplot(fig2)
