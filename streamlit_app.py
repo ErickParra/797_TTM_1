@@ -483,63 +483,55 @@ st.write(resampled_data.isnull().sum())
 
 
 
-# Definir la columna target
-target_col = "Engine Oil Temperature-Engine (Deg F)"  # Cambiar si el target es diferente
+# Definir la columna de tiempo
+time_col = "New_Date/Time"  # Columna con las fechas
 
-# Verificar si la columna target está en los datos
-if target_col not in resampled_data.columns:
-    st.error(f"La columna target '{target_col}' no está presente en los datos.")
-else:
-    try:
-        # Separar features, target y tiempo
-        time_col = "New_Date/Time"  # Columna con las fechas
-        X = resampled_data.drop(columns=[time_col, target_col])  # Features
-        y = resampled_data[target_col]  # Target
-        timestamps = resampled_data[time_col]  # Timestamps
+try:
+    # Verificar si las columnas están presentes
+    if time_col not in resampled_data.columns:
+        st.error(f"La columna de tiempo '{time_col}' no está presente en los datos.")
 
-        # Ajustar para los últimos 512 valores más recientes
-        context_length = 512  # Longitud esperada por el modelo
-        if len(X) > context_length:
-            X = X[-context_length:]
-            y = y[-context_length:]
-            timestamps = timestamps[-context_length:]
+    # Ajustar para los últimos 512 valores más recientes
+    context_length = 512  # Longitud esperada por el modelo
+    if len(resampled_data) > context_length:
+        resampled_data = resampled_data[-context_length:]
 
-        # Escalar las features y el target
-        normalized_X = observable_scaler.transform(X.values)  # Escalar las features
-        normalized_y = target_scaler.transform(y.values.reshape(-1, 1))  # Escalar el target
+    # Separar tiempo y features
+    timestamps = resampled_data[time_col]  # Timestamps
+    X = resampled_data.drop(columns=[time_col])  # Features (incluida la variable target)
 
-        # Convertir a tensores asegurando el tipo float32
-        input_tensor = torch.tensor(normalized_X, dtype=torch.float32).unsqueeze(0)  # Features
-        target_tensor = torch.tensor(normalized_y, dtype=torch.float32).unsqueeze(0)  # Target (opcional para evaluación)
+    # Escalar las features asegurando el tipo float32
+    normalized_X = observable_scaler.transform(X.values.astype('float32'))
 
-        # Generar predicciones
-        with torch.no_grad():
-            predictions = model(input_tensor)
+    # Convertir a tensores asegurando el tipo float32
+    input_tensor = torch.tensor(normalized_X, dtype=torch.float32).unsqueeze(0)  # Features
 
-        # Desescalar las predicciones
-        descaled_predictions = target_scaler.inverse_transform(predictions.numpy().squeeze(0))
+    # Generar predicciones
+    with torch.no_grad():
+        predictions = model(input_tensor)
 
-        # Crear un DataFrame con las predicciones, el tiempo y los valores reales
-        predictions_df = pd.DataFrame({
-            "New_Date/Time": timestamps.values,  # Timestamps para las predicciones
-            "Predicción": descaled_predictions.flatten(),  # Predicciones desescaladas
-            "Actual": y.values  # Valores reales
-        })
+    # Desescalar las predicciones
+    descaled_predictions = target_scaler.inverse_transform(predictions.numpy().squeeze(0))
 
-        # Mostrar resultados
-        st.write("### Resultados de las predicciones")
-        st.dataframe(predictions_df)
+    # Crear un DataFrame con las predicciones y el tiempo
+    predictions_df = pd.DataFrame({
+        "New_Date/Time": timestamps.values,  # Timestamps para las predicciones
+        "Predicción": descaled_predictions.flatten()  # Predicciones desescaladas
+    })
 
-        # Graficar resultados
-        fig, ax = plt.subplots(figsize=(12, 6))
-        ax.plot(timestamps, y.values, label="Actual", color="blue", linewidth=1)
-        ax.plot(timestamps, descaled_predictions.flatten(), label="Predicción", color="red", linestyle="--")
-        ax.set_title("Predicción vs Actual")
-        ax.set_xlabel("Tiempo")
-        ax.set_ylabel("Temperatura (Deg F)")
-        ax.legend()
-        plt.grid()
-        st.pyplot(fig)
+    # Mostrar resultados
+    st.write("### Resultados de las predicciones")
+    st.dataframe(predictions_df)
 
-    except Exception as e:
-        st.error(f"Error durante la predicción: {e}")
+    # Graficar resultados
+    fig, ax = plt.subplots(figsize=(12, 6))
+    ax.plot(timestamps, predictions_df["Predicción"], label="Predicción", color="red", linestyle="--")
+    ax.set_title("Predicción")
+    ax.set_xlabel("Tiempo")
+    ax.set_ylabel("Temperatura (Deg F)")
+    ax.legend()
+    plt.grid()
+    st.pyplot(fig)
+
+except Exception as e:
+    st.error(f"Error durante la predicción: {e}")
