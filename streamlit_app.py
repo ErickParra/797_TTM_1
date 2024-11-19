@@ -620,3 +620,52 @@ plt.grid()
 
 # Mostrar el gráfico en Streamlit
 st.pyplot(fig)
+
+
+
+
+import matplotlib.pyplot as plt
+
+# Crear dos columnas para los gráficos
+col1, col2 = st.columns(2)
+
+# Gráfico de valores reales (en la columna izquierda)
+with col1:
+    st.write("### Valores Reales (Últimos 512 Registros)")
+    fig1, ax1 = plt.subplots(figsize=(6, 4))  # Ajustar tamaño para caber en la columna
+    ax1.plot(
+        real_data[timestamp_column],
+        real_data[target_column],  # Valores reales
+        label="Valor Real",
+        linestyle="-",
+        color="blue",
+        linewidth=1,
+    )
+    ax1.set_title("Valores Reales")
+    ax1.set_xlabel("Tiempo")
+    ax1.set_ylabel("Valores")
+    ax1.legend()
+    plt.grid()
+    st.pyplot(fig1)
+
+# Gráfico de predicciones generadas (en la columna derecha)
+with col2:
+    st.write("### Predicciones Generadas (Horizonte Futuro)")
+    prediction_col = f"{target_column}_prediction"
+    if prediction_col not in predictions.columns:
+        st.error(f"La columna de predicciones '{prediction_col}' no está en el DataFrame de predicciones.")
+    else:
+        fig2, ax2 = plt.subplots(figsize=(6, 4))  # Ajustar tamaño para caber en la columna
+        ax2.plot(
+            predictions[timestamp_column],
+            predictions[prediction_col],
+            label="Predicción",
+            linestyle="--",
+            color="green",
+        )
+        ax2.set_title("Predicciones Generadas")
+        ax2.set_xlabel("Tiempo")
+        ax2.set_ylabel("Valores Predichos")
+        ax2.legend()
+        plt.grid()
+        st.pyplot(fig2)
