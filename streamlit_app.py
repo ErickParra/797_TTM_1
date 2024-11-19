@@ -309,8 +309,6 @@ display_config_file(config_path)
 
 
 # Función para cargar el modelo TTM
-from tsfm_public.models import TinyTimeMixerForPrediction
-
 # Function to load the TTM model
 @st.cache_resource
 def load_ttm_model():
