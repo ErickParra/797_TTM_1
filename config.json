@@ -57,7 +57,7 @@
   "self_attn_heads": 1,
   "stride_ratio": 1,
   "torch_dtype": "float32",
-  "transformers_version": "4.44.2",
+  "transformers_version": "4.46.2",
   "use_decoder": true,
   "use_positional_encoding": false
 }
