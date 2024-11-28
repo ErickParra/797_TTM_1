@@ -132,12 +132,12 @@ else:
         data['ParameterName'].unique()
     )
 
-
+    data.loc[data['ParameterFloatValue'] == 32784, 'ParameterFloatValue'] = np.nan
 
     # Filtrar datos para el parámetro seleccionado
     filtered_data = data[(data['ParameterName'] == selected_param) &
                      (data['ParameterFloatValue'] >= -100) &
-                     (data['ParameterFloatValue'] <= 5000)]
+                     (data['ParameterFloatValue'] <= 10000)]
 
     # Asegurarse de que ReadTime sea datetime y ordenar los datos
     filtered_data['ReadTime'] = pd.to_datetime(filtered_data['ReadTime'])
