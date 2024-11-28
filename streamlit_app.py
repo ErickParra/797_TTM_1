@@ -132,7 +132,7 @@ else:
         data['ParameterName'].unique()
     )
 
-    data.loc[data['ParameterFloatValue'] == 32784, 'ParameterFloatValue'] = np.nan
+    data.loc[data['ParameterFloatValue'] == 32784, 'ParameterFloatValue'] = 0
 
     # Filtrar datos para el parámetro seleccionado
     filtered_data = data[(data['ParameterName'] == selected_param) &
