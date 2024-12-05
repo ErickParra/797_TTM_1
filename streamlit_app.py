@@ -585,8 +585,6 @@ y_min, y_max = 150, 245
 try:
     # Gráfico de predicciones generadas (solo horizonte futuro)
     st.write("### Gráfico de Predicciones (Horizonte Futuro) {selected_equipment}")
-    
-    prediction_col = 'Engine Oil Temperature-Engine (Deg F)_prediction'
 
     # Verificar si las columnas requeridas existen en las predicciones
     prediction_col = f"{target_column}_prediction"
@@ -758,3 +756,33 @@ with col2:
         ax2.legend(fontsize=8)
         plt.grid()
         st.pyplot(fig2)
+
+
+# Define el nombre correcto de la columna de predicciones
+prediction_col = 'Engine Oil Temperature-Engine (Deg F)'
+
+# Resto del código permanece igual
+try:
+    st.write(f"### Gráfico de Predicciones (Horizonte Futuro) {selected_equipment}")
+
+    if prediction_col not in predictions.columns:
+        st.error(f"La columna de predicciones '{prediction_col}' no está en el DataFrame de predicciones.")
+    else:
+        fig, ax = plt.subplots(figsize=(12, 6))
+        ax.plot(
+            predictions[timestamp_column],
+            predictions[prediction_col],
+            label='Predicción',
+            linestyle='--',
+            color='green',
+        )
+        ax.set_title(f'Predicciones Generadas (Horizonte Futuro) {selected_equipment}')
+        ax.set_xlabel('Tiempo')
+        ax.set_ylabel('Valores Predichos')
+        ax.set_ylim(y_min, y_max)  # Escala uniforme en el eje Y
+        ax.legend()
+        plt.grid()
+        st.pyplot(fig)
+
+except Exception as e:
+    st.error(f"Error al graficar las predicciones: {e}")
