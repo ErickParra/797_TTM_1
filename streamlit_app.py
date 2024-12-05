@@ -585,6 +585,8 @@ y_min, y_max = 150, 245
 try:
     # Gráfico de predicciones generadas (solo horizonte futuro)
     st.write("### Gráfico de Predicciones (Horizonte Futuro) {selected_equipment}")
+    
+    prediction_col = 'Engine Oil Temperature-Engine (Deg F)'
 
     # Verificar si las columnas requeridas existen en las predicciones
     prediction_col = f"{target_column}_prediction"
