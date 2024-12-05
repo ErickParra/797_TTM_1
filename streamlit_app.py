@@ -732,7 +732,10 @@ with col1:
 # Gráfico de predicciones generadas (en la columna derecha)
 with col2:
     st.markdown(f"###### Predicciones (Horizonte 48 minutos) {selected_equipment}")
-    prediction_col = f"{target_column}_prediction"
+
+    # Actualizamos la variable prediction_col para que coincida con el nombre real de la columna
+    prediction_col = target_column  # La columna de predicciones es 'Engine Oil Temperature-Engine (Deg F)'
+
     if prediction_col not in predictions.columns:
         st.error(f"La columna de predicciones '{prediction_col}' no está en el DataFrame de predicciones.")
     else:
@@ -756,33 +759,3 @@ with col2:
         ax2.legend(fontsize=8)
         plt.grid()
         st.pyplot(fig2)
-
-
-# Define el nombre correcto de la columna de predicciones
-prediction_col = 'Engine Oil Temperature-Engine (Deg F)'
-
-# Resto del código permanece igual
-try:
-    st.write(f"### Gráfico de Predicciones (Horizonte Futuro) {selected_equipment}")
-
-    if prediction_col not in predictions.columns:
-        st.error(f"La columna de predicciones '{prediction_col}' no está en el DataFrame de predicciones.")
-    else:
-        fig, ax = plt.subplots(figsize=(12, 6))
-        ax.plot(
-            predictions[timestamp_column],
-            predictions[prediction_col],
-            label='Predicción',
-            linestyle='--',
-            color='green',
-        )
-        ax.set_title(f'Predicciones Generadas (Horizonte Futuro) {selected_equipment}')
-        ax.set_xlabel('Tiempo')
-        ax.set_ylabel('Valores Predichos')
-        ax.set_ylim(y_min, y_max)  # Escala uniforme en el eje Y
-        ax.legend()
-        plt.grid()
-        st.pyplot(fig)
-
-except Exception as e:
-    st.error(f"Error al graficar las predicciones: {e}")
