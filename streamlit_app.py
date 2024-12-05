@@ -549,13 +549,15 @@ else:
         # Mostrar resultados
         st.write("### Predicciones generadas")
         st.dataframe(predictions)
-
+        
+        st.write("### Columnas en el DataFrame de predicciones:")
+        st.write(predictions.columns.tolist())
+        
         # Graficar resultados
         fig, ax = plt.subplots(figsize=(12, 6))
         ax.plot(
             predictions[timestamp_column],
-            #predictions[f"{target_column}_prediction"],
-            predictions[f"{target_column}"],
+            predictions[f"{target_column}_prediction"],
             label="Predicción",
             linestyle="--",
             color="red",
