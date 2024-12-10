@@ -29,7 +29,7 @@ database = st.secrets["database"]
 username = st.secrets["username"]
 password = st.secrets["password"]
 
-@st.cache
+@st.cache_data
 def load_data(query, conn_str):
     try:
         conn = pyodbc.connect(conn_str)
@@ -385,7 +385,7 @@ import os
 
 
 # Función para cargar el modelo
-@st.cache(allow_output_mutation=True)
+@st.cache_data(allow_output_mutation=True)
 def load_model():
     try:
         # Cargar el modelo desde el directorio donde están los archivos
