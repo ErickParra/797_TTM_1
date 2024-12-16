@@ -603,32 +603,48 @@ else:
 
 
 
+
+# Ver las columnas del DataFrame de predicciones
 st.write("### Columnas en el DataFrame de predicciones:")
 st.write(predictions.columns.tolist())
 
-# Asumiremos que la columna de predicción se llama:
-prediction_col = f"{target_column}_prediction"
+# No existe la columna prediction_col, así que debemos separar por tiempo.
+# Obtenemos la última fecha del conjunto de datos original (resampled_data)
+max_timestamp_real = resampled_data[timestamp_column].max()
 
-# Gráfico comparativo (Real vs Predicción)
+# Supongamos que en predictions tenemos tanto los datos reales como las predicciones,
+# y las predicciones son los timestamps futuros más allá de max_timestamp_real.
+
+# Datos reales: timestamps <= max_timestamp_real
+df_real = predictions[predictions[timestamp_column] <= max_timestamp_real].copy()
+df_real.rename(columns={target_column: "Real"}, inplace=True)
+
+# Datos futuros (predicciones): timestamps > max_timestamp_real
+df_pred = predictions[predictions[timestamp_column] > max_timestamp_real].copy()
+df_pred.rename(columns={target_column: "Predicted"}, inplace=True)
+
+# Ahora tenemos df_real con "Real" y df_pred con "Predicted".
+# Podemos graficar directamente si queremos ver la comparación en el tiempo extendido.
+
 fig, ax = plt.subplots(figsize=(12, 6))
+
+# Graficar valores reales
 ax.plot(
-    predictions[timestamp_column],
-    predictions[target_column],
+    df_real[timestamp_column],
+    df_real["Real"],
     label="Real",
     linestyle="-",
     color="blue",
 )
 
-if prediction_col in predictions.columns:
-    ax.plot(
-        predictions[timestamp_column],
-        predictions[prediction_col],
-        label="Predicción",
-        linestyle="--",
-        color="red",
-    )
-else:
-    st.error(f"No se encontró la columna de predicciones {prediction_col} en predictions.")
+# Graficar valores predichos
+ax.plot(
+    df_pred[timestamp_column],
+    df_pred["Predicted"],
+    label="Predicción",
+    linestyle="--",
+    color="red",
+)
 
 ax.set_title("Predicción vs Real")
 ax.legend()
