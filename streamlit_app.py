@@ -20,7 +20,7 @@ from streamlit_autorefresh import st_autorefresh
 # ======================================
 # Auto-refresco cada 5 minutos
 # ======================================
-count = st_autorefresh(interval=5 * 60 * 1000, limit=None, key="refresh")
+count = st_autorefresh(interval=1 * 60 * 1000, limit=None, key="refresh")
 
 # ======================================
 # Ajustes de paths y archivos del modelo
