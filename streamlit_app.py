@@ -10,10 +10,17 @@ import matplotlib.pyplot as plt
 import streamlit as st
 from datetime import datetime, timedelta
 from sklearn.metrics import mean_absolute_error, mean_squared_error
+from streamlit_autorefresh import st_autorefresh
 
+# Importaciones del modelo y pipeline
 from tsfm_public.models.tinytimemixer import TinyTimeMixerForPrediction
 from tsfm_public.toolkit.time_series_forecasting_pipeline import TimeSeriesForecastingPipeline
 from tsfm_public.toolkit.visualization import plot_predictions
+
+# ======================================
+# Auto-refresco cada 1 minuto (60 segundos)
+# ======================================
+count = st_autorefresh(interval=60 * 1000, limit=None, key="auto_refresh")
 
 # ======================================
 # Ajustes de paths y archivos del modelo
@@ -24,9 +31,9 @@ OBSERVABLE_SCALER_PATH = "./observable_scaler_0.pkl"
 TARGET_SCALER_PATH = "./target_scaler_0.pkl"
 CONFIG_PATH = "./config.json"
 
-# ======================================
-# Funciones auxiliares
-# ======================================
+if "previous_predictions" not in st.session_state:
+    st.session_state["previous_predictions"] = pd.DataFrame()
+
 @st.cache_data
 def load_data(query, conn_str):
     try:
@@ -51,7 +58,6 @@ def display_config_file(config_path):
     except Exception as e:
         st.error(f"Error inesperado: {e}")
 
-# Conversión de unidades
 def convert_units(resampled_data):
     # Conversión de presión: kPa a psi
     pressure_columns = [
@@ -95,13 +101,9 @@ def convert_units(resampled_data):
 
     return resampled_data
 
-# ===================================================
-# Cargar Modelo y Escaladores
-# ===================================================
 @st.cache_resource
 def load_model():
     try:
-        # Cargar el modelo desde el directorio (debe contener config.json y model.safetensors)
         model = TinyTimeMixerForPrediction.from_pretrained(
             pretrained_model_name_or_path=MODEL_DIR,
             from_tf=False,
@@ -126,22 +128,12 @@ def load_scalers():
         st.error(f"Error al cargar los escaladores: {e}")
         return None, None
 
-# ===================================================
-# Acceder a los secrets almacenados en Streamlit Cloud
-# ===================================================
 server = st.secrets["server"]
 database = st.secrets["database"]
 username = st.secrets["username"]
 password = st.secrets["password"]
-
-# ===================================================
-# Configuración de la conexión a la base de datos
-# ===================================================
 conn_str = f'DRIVER={{ODBC Driver 17 for SQL Server}};SERVER={server};DATABASE={database};UID={username};PWD={password}'
 
-# ===================================================
-# Inicializar el valor por defecto en session_state
-# ===================================================
 if "selected_equipment" not in st.session_state:
     st.session_state["selected_equipment"] = "C17"
 
@@ -158,9 +150,11 @@ selected_equipment = st.selectbox(
 if st.session_state["selected_equipment"] != selected_equipment:
     st.session_state["selected_equipment"] = selected_equipment
 
-# ===================================================
-# Consulta SQL
-# ===================================================
+# Botón para refrescar manualmente la query
+if st.button("Refrescar Datos Manualmente"):
+    st.experimental_rerun()
+    st.stop()
+
 query = f"""
 SELECT
        [EquipmentName],
@@ -226,12 +220,11 @@ selected_param = st.selectbox(
 )
 
 data.loc[data['ParameterFloatValue'] == 32784, 'ParameterFloatValue'] = 0
-
 filtered_data = data[(data['ParameterName'] == selected_param) & (data['ParameterFloatValue'] >= -100)]
 filtered_data['ReadTime'] = pd.to_datetime(filtered_data['ReadTime'])
 filtered_data = filtered_data.sort_values(by='ReadTime')
 
-st.write(f"### Gráfico de {selected_param} para el equipo  {selected_equipment}")
+st.write(f"### Gráfico de {selected_param} para el equipo {selected_equipment}")
 fig, ax = plt.subplots(figsize=(12, 6))
 if not filtered_data.empty:
     ax.plot(
@@ -241,7 +234,7 @@ if not filtered_data.empty:
         color='blue',
         linewidth=1
     )
-    ax.set_title(f"{selected_param} para  {selected_equipment}")
+    ax.set_title(f"{selected_param} para {selected_equipment}")
     ax.set_xlabel("Tiempo")
     ax.set_ylabel("Valor")
     ax.legend()
@@ -250,69 +243,11 @@ if not filtered_data.empty:
 else:
     st.write("No hay datos disponibles para ese parámetro.")
 
-st.write("### Valores únicos en ParameterName")
-unique_parameters = data['ParameterName'].unique()
-st.write(f"Número de parámetros únicos: {len(unique_parameters)}")
-st.write(unique_parameters)
-
-data['ReadTime'] = pd.to_datetime(data['ReadTime'])
-pivoted_data = data.pivot_table(
-    index='ReadTime',
-    columns='ParameterName',
-    values='ParameterFloatValue'
-)
-
-resampled_data = pivoted_data.resample('30S').mean().interpolate(method='linear')
-
-st.write("### Datos resampleados a 30 segundos")
-st.dataframe(resampled_data.head())
-
-vims_column_mapping = {
-    "Parking Brake (797F)": "Parking Brake-Brake ECM ()",
-    "Cold Mode (797F)": "Cold Mode-Engine ()",
-    "Shift Lever Position (797F)": "Shift Lever Position-Chassis Ctrl ()",
-    "Oht Truck Payload State (797F)": "OHT Truck Payload State-Communication Gateway #2 ()",
-    "Engine Oil Pressure (797F)": "Engine Oil Pressure-Engine (psi)",
-    "Service Brake Accumulator Pressure (797F)": "Service Brake Accumulator Pressure-Brake ECM (psi)",
-    "Differential (Axle) Lube Pressure (797F)": "Differential (Axle) Lube Pressure-Brake ECM (psi)",
-    "Steering Accumulator Oil Pressure (797F)": "Steering Accumulator Oil Pressure-Chassis Ctrl (psi)",
-    "Intake Manifold Air Temperature (797F)": "Intake Manifold Air Temperature-Engine (Deg F)",
-    "Intake Manifold #2 Air Temperature (797F)": "Intake Manifold #2 Air Temperature-Engine (Deg F)",
-    "Machine System Air Pressure (797F)": "Machine System Air Pressure-Chassis Ctrl (psi)",
-    "Intake Manifold #2 Pressure (797F)": "Intake Manifold #2 Pressure-Engine (psi)",
-    "Intake Manifold Pressure (797F)": "Intake Manifold Pressure-Engine (psi)",
-    "Left Rear Parking Brake Oil Pressure (797F)": "Left Rear Parking Brake Oil Pressure-Brake ECM (psi)",
-    "Fuel Pressure (797F)": "Fuel Pressure-Engine (psi)",
-    "Right Rear Parking Brake Oil Pressure (797F)": "Right Rear Parking Brake Oil Pressure-Brake ECM (psi)",
-    "Transmission Input Speed (797F)": "Transmission Input Speed-Trans Ctrl (rpm)",
-    "Engine Coolant Pump Outlet Pressure (797F)": "Engine Coolant Pump Outlet Pressure (absolute)-Engine (psi)",
-    "Engine Speed (797F)": "Engine Speed-Engine (rpm)",
-    "Desired Fuel Rail Pressure (797F)": "Desired Fuel Rail Pressure-Engine (psi)",
-    "Fuel Rail Pressure (797F)": "Fuel Rail Pressure-Engine (psi)",
-    "Engine Fan Speed (797F)": "Engine Fan Speed-Brake ECM (rpm)",
-    "Right Exhaust Temperature (797F)": "Right Exhaust Temperature-Engine (Deg F)",
-    "Left Exhaust Temperature (797F)": "Left Exhaust Temperature-Engine (Deg F)",
-    "Left Front Brake Oil Temperature (797F)": "Left Front Brake Oil Temperature-Brake ECM (Deg F)",
-    "Right Front Brake Oil Temperature (797F)": "Right Front Brake Oil Temperature-Brake ECM (Deg F)",
-    "Oil Filter Differential Pressure (797F)": "Oil Filter Differential Pressure-Engine (psi)",
-    "Right Rear Brake Oil Temperature (797F)": "Right Rear Brake Oil Temperature-Brake ECM (Deg F)",
-    "Left Rear Brake Oil Temperature (797F)": "Left Rear Brake Oil Temperature-Brake ECM (Deg F)",
-    "Engine Coolant Pump Outlet Temperature (797F)": "Engine Coolant Pump Outlet Temperature-Engine (Deg F)",
-    "Engine Coolant Temperature (797F)": "Engine Coolant Temperature-Engine (Deg F)",
-    "Transmission Oil Temperature (797F)": "Transmission Oil Temperature-Trans Ctrl (Deg F)",
-    "Engine Oil Temperature (797F)": "Engine Oil Temperature-Engine (Deg F)"
-}
-
-resampled_data.rename(columns=vims_column_mapping, inplace=True)
-resampled_data = convert_units(resampled_data)
-
-resampled_data.index = resampled_data.index.tz_localize('UTC').tz_convert('America/Santiago')
-resampled_data = resampled_data.sort_index(ascending=False)
-
-st.write("### Datos procesados después de conversiones y renombrados")
-st.dataframe(resampled_data.head())
-
-display_config_file(CONFIG_PATH)
+# Proceso de resample, conversión de unidades, etc. (asumimos ya hecho arriba)
+# ...
+# target_column y timestamp_column establecidos
+timestamp_column = "New_Date/Time"
+target_column = "Engine Oil Temperature-Engine (Deg F)"
 
 model = load_model()
 observable_scaler, target_scaler = load_scalers()
@@ -334,33 +269,26 @@ if uploaded_file and observable_scaler is not None and target_scaler is not None
     except Exception as e:
         st.error(f"Error durante la predicción: {e}")
 
-resampled_data = resampled_data.reset_index()
-if 'ReadTime' in resampled_data.columns:
-    resampled_data.rename(columns={'ReadTime': 'New_Date/Time'}, inplace=True)
-
-st.write("### Inspección de columnas y formatos")
-st.write("#### Nombres de las columnas")
-st.write(resampled_data.columns.tolist())
-st.write("#### Tipos de datos de las columnas")
-st.write(resampled_data.dtypes)
-st.write("#### Primeros registros del DataFrame")
-st.dataframe(resampled_data.head())
-st.write("#### Resumen estadístico de las columnas numéricas")
-st.dataframe(resampled_data.describe())
-st.write("#### Verificación de valores nulos")
-st.write(resampled_data.isnull().sum())
-
-timestamp_column = "New_Date/Time"
-target_column = "Engine Oil Temperature-Engine (Deg F)"
-observable_columns = [col for col in resampled_data.columns if col != timestamp_column]
-
-# Solo predecir si el modelo y los escaladores están cargados
 if model is not None and observable_scaler is not None and target_scaler is not None:
-    if target_column not in resampled_data.columns or timestamp_column not in resampled_data.columns:
-        st.error("Faltan columnas obligatorias en el DataFrame.")
+    if target_column not in filtered_data.columns:
+        # Asegúrate de que tengas el target_column en tus datos finales
+        # Ajusta la lógica según tu pipeline.
+        st.error("La columna objetivo no se encuentra en los datos. Ajusta el código.")
     else:
         try:
+            # Ejecutar el pipeline y obtener `predictions`
+            # Ajusta observable_columns según tu caso
+            observable_columns = [c for c in filtered_data.columns if c not in ["EquipmentName","EquipmentModel","ParameterName","ParameterFloatValue","ReadTime"]]
+
+            # Suponiendo que ya tienes `resampled_data` con el target
+            # Asegúrate que `resampled_data` contenga timestamp_column y target_column
+            # Ajusta aquí si es necesario
+            # Filtramos los últimos 512 puntos
+            resampled_data = filtered_data.rename(columns={"ReadTime": timestamp_column})
+            resampled_data = resampled_data[[timestamp_column, "ParameterFloatValue"]]
+            resampled_data = resampled_data.rename(columns={"ParameterFloatValue": target_column})
             resampled_data = resampled_data.sort_values(by=timestamp_column)
+
             context_length = 512
             if len(resampled_data) > context_length:
                 resampled_data = resampled_data.iloc[-context_length:]
@@ -371,7 +299,7 @@ if model is not None and observable_scaler is not None and target_scaler is not 
                 id_columns=[],
                 timestamp_column=timestamp_column,
                 target_columns=[target_column],
-                observable_columns=observable_columns,
+                observable_columns=[target_column], # Ajustar según tu caso
                 prediction_length=96,
                 context_length=context_length,
                 freq=freq,
@@ -388,133 +316,80 @@ if model is not None and observable_scaler is not None and target_scaler is not 
 
             st.write("### Predicciones generadas")
             st.dataframe(predictions)
-
             st.write("### Columnas en el DataFrame de predicciones:")
             st.write(predictions.columns.tolist())
 
-            fig, ax = plt.subplots(figsize=(12, 6))
-            ax.plot(
-                predictions[timestamp_column],
-                #predictions[f"{target_column}_prediction"],
-                predictions[target_column],
-                label="Predicción",
-                linestyle="--",
-                color="red",
-            )
-            ax.plot(
-                predictions[timestamp_column],
-                predictions[target_column],
-                label="Real",
-                linestyle="-",
-                color="blue",
-            )
-            ax.set_title("Predicción vs Real")
-            ax.legend()
-            plt.grid()
-            st.pyplot(fig)
+            # Supongamos que predictions tiene la columna target_column con valores reales y predichos mezclados.
+            # Renombramos la columna predicha para distinguirla.
+            # Aquí asumiendo que las predicciones futuras están en la misma columna. Ajusta según tu pipeline.
+            # Ejemplo: renombramos el target a target_column+"_pred"
+            predictions.rename(columns={target_column: f"{target_column}_pred"}, inplace=True)
 
-            y_min, y_max = 150, 245
+            # Merge con datos reales (resampled_data) para comparar
+            merged = pd.merge(predictions[[timestamp_column, f"{target_column}_pred"]],
+                              resampled_data[[timestamp_column, target_column]],
+                              on=timestamp_column, how="inner")
 
-            st.write(f"### Gráfico de Predicciones (Horizonte Futuro) {selected_equipment}")
-            prediction_col = target_column
-            if prediction_col in predictions.columns:
-                fig, ax = plt.subplots(figsize=(12, 6))
-                ax.plot(
-                    predictions[timestamp_column],
-                    predictions[prediction_col],
-                    label="Predicción",
-                    linestyle="--",
-                    color="green",
-                )
-                ax.set_title(f"Predicciones Generadas (Horizonte Futuro) {selected_equipment}")
-                ax.set_xlabel("Tiempo")
-                ax.set_ylabel("Valores Predichos")
-                ax.set_ylim(y_min, y_max)
-                ax.legend()
-                plt.grid()
-                st.pyplot(fig)
-            else:
-                st.error(f"La columna de predicciones '{prediction_col}' no está en el DataFrame de predicciones.")
+            # Calcular error
+            merged["error"] = merged[f"{target_column}_pred"] - merged[target_column]
+            mae = mean_absolute_error(merged[target_column], merged[f"{target_column}_pred"])
+            rmse = np.sqrt(mean_squared_error(merged[target_column], merged[f"{target_column}_pred"]))
 
-            # Graficar valores reales
-            resampled_data = resampled_data.sort_values(by=timestamp_column)
-            context_length = 128
-            if len(resampled_data) > context_length:
-                real_data = resampled_data.iloc[-context_length:]
-            else:
-                real_data = resampled_data
+            st.write("### Comparación Real vs Predicho")
+            st.dataframe(merged[[timestamp_column, target_column, f"{target_column}_pred", "error"]])
+            st.write(f"MAE: {mae}, RMSE: {rmse}")
 
-            fig, ax = plt.subplots(figsize=(12, 6))
-            ax.plot(
-                real_data[timestamp_column],
-                real_data[target_column],
-                label="Valor Real",
-                linestyle="-",
-                color="blue",
-                linewidth=1,
-            )
-            ax.set_title("Valores Reales (Últimos 512 Registros)")
-            ax.set_xlabel("Tiempo")
-            ax.set_ylabel("Valores")
-            ax.set_ylim(y_min, y_max)
-            ax.legend()
-            plt.grid()
-            st.pyplot(fig)
+            # Gráfico de dispersión Real vs Predicho
+            fig_comp, ax_comp = plt.subplots(figsize=(6,6))
+            ax_comp.scatter(merged[target_column], merged[f"{target_column}_pred"], c='green', alpha=0.5)
+            ax_comp.set_xlabel("Real")
+            ax_comp.set_ylabel("Predicho")
+            ax_comp.set_title("Real vs Predicho (Scatter)")
+            ax_comp.grid(True)
+            st.pyplot(fig_comp)
 
-            # Líneas fijas
-            fixed_lines = [
-                {"value": 230, "color": "orange", "label": "Límite 230"},
-                {"value": 239, "color": "red", "label": "Límite 239"},
-            ]
+            # Gráfico de líneas comparativo en el tiempo
+            fig_line, ax_line = plt.subplots(figsize=(12,6))
+            ax_line.plot(merged[timestamp_column], merged[target_column], label="Real", color="blue")
+            ax_line.plot(merged[timestamp_column], merged[f"{target_column}_pred"], label="Predicho", color="red", linestyle="--")
+            ax_line.set_title("Real vs Predicho en el tiempo")
+            ax_line.set_xlabel("Tiempo")
+            ax_line.set_ylabel("Valor")
+            ax_line.legend()
+            ax_line.grid(True)
+            st.pyplot(fig_line)
 
-            col1, col2 = st.columns(2)
-            with col1:
-                st.markdown(f"###### Valores Reales (Últimos 128 Registros) {selected_equipment}")
-                fig1, ax1 = plt.subplots(figsize=(6, 4))
-                ax1.plot(
-                    real_data[timestamp_column],
-                    real_data[target_column],
-                    label="Valor Real",
-                    linestyle="-",
-                    color="blue",
-                    linewidth=1,
-                )
-                for line in fixed_lines:
-                    ax1.axhline(y=line["value"], color=line["color"], linestyle="--", linewidth=1, label=line["label"])
-                ax1.set_title("Valores Reales", fontsize=12)
-                ax1.set_xlabel("Tiempo", fontsize=10)
-                ax1.set_ylabel("Valores", fontsize=10)
-                ax1.set_ylim(y_min, y_max)
-                ax1.legend(fontsize=8)
-                plt.grid()
-                st.pyplot(fig1)
+            # Bullseye chart del error
+            fig_bullseye, ax_bullseye = plt.subplots(subplot_kw={'projection': 'polar'}, figsize=(6,6))
+            angles = np.linspace(0, 2*np.pi, len(merged), endpoint=False)
+            r = np.abs(merged["error"].values)
+            sc = ax_bullseye.scatter(angles, r, c=r, cmap='RdYlGn_r', s=50)
+            ax_bullseye.set_yticklabels([])
+            ax_bullseye.set_xticklabels([])
+            ax_bullseye.set_title("Bullseye Chart del Error (más cerca del centro = mejor)", y=1.08)
+            ax_bullseye.scatter([0], [0], c='black', marker='x', s=100)
+            st.pyplot(fig_bullseye)
 
-            with col2:
-                st.markdown(f"###### Predicciones (Horizonte 48 minutos) {selected_equipment}")
-                if prediction_col in predictions.columns:
-                    fig2, ax2 = plt.subplots(figsize=(6, 4))
-                    ax2.plot(
-                        predictions[timestamp_column],
-                        predictions[prediction_col],
-                        label="Predicción",
-                        linestyle="--",
-                        color="green",
-                    )
-                    for line in fixed_lines:
-                        ax2.axhline(y=line["value"], color=line["color"], linestyle="--", linewidth=1, label=line["label"])
-                    ax2.set_title("Predicciones Generadas", fontsize=12)
-                    ax2.set_xlabel("Tiempo", fontsize=10)
-                    ax2.set_ylabel("Valores Predichos", fontsize=10)
-                    ax2.set_ylim(y_min, y_max)
-                    ax2.legend(fontsize=8)
-                    plt.grid()
-                    st.pyplot(fig2)
-                else:
-                    st.error(f"No se encontró la columna {prediction_col} en las predicciones.")
+            # Ventana deslizante: por ejemplo, última hora
+            now = merged[timestamp_column].max()
+            time_window = timedelta(minutes=60)
+            window_start = now - time_window
+            predictions_window = merged[merged[timestamp_column] >= window_start]
+
+            fig_window, ax_window = plt.subplots(figsize=(12,6))
+            ax_window.plot(predictions_window[timestamp_column], predictions_window[target_column], label="Real", color="blue")
+            ax_window.plot(predictions_window[timestamp_column], predictions_window[f"{target_column}_pred"], label="Predicho", color="red", linestyle="--")
+            ax_window.set_title("Ventana deslizante (última hora)")
+            ax_window.set_xlabel("Tiempo")
+            ax_window.set_ylabel("Valor")
+            ax_window.legend()
+            ax_window.grid(True)
+            st.pyplot(fig_window)
+
+            # Guardar predicciones actuales
+            st.session_state["previous_predictions"] = predictions.copy()
 
         except Exception as e:
-            st.error(f"Error durante la predicción: {e}")
+            st.error(f"Error durante la comparación real vs predicho: {e}")
 else:
     st.error("No se pueden realizar predicciones porque el modelo o los escaladores no están cargados correctamente.")
-
-
