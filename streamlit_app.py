@@ -51,6 +51,16 @@ def display_config_file(config_path):
     except Exception as e:
         st.error(f"Error inesperado: {e}")
 
+# =========================
+# Inicialización de estado
+# =========================
+if "query_data" not in st.session_state:
+    st.session_state["query_data"] = pd.DataFrame()
+
+if "real_vs_predicted" not in st.session_state:
+    st.session_state["real_vs_predicted"] = pd.DataFrame()
+
+
 # Conversión de unidades
 def convert_units(resampled_data):
     # Conversión de presión: kPa a psi
