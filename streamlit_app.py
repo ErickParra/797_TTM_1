@@ -24,9 +24,9 @@ OBSERVABLE_SCALER_PATH = "./observable_scaler_0.pkl"
 TARGET_SCALER_PATH = "./target_scaler_0.pkl"
 CONFIG_PATH = "./config.json"
 
-# ======================================
-# Funciones auxiliares
-# ======================================
+if "previous_predictions" not in st.session_state:
+    st.session_state["previous_predictions"] = pd.DataFrame()
+
 @st.cache_data
 def load_data(query, conn_str):
     try:
@@ -51,7 +51,6 @@ def display_config_file(config_path):
     except Exception as e:
         st.error(f"Error inesperado: {e}")
 
-# Conversión de unidades
 def convert_units(resampled_data):
     # Conversión de presión: kPa a psi
     pressure_columns = [
@@ -95,13 +94,9 @@ def convert_units(resampled_data):
 
     return resampled_data
 
-# ===================================================
-# Cargar Modelo y Escaladores
-# ===================================================
 @st.cache_resource
 def load_model():
     try:
-        # Cargar el modelo desde el directorio (debe contener config.json y model.safetensors)
         model = TinyTimeMixerForPrediction.from_pretrained(
             pretrained_model_name_or_path=MODEL_DIR,
             from_tf=False,
@@ -126,22 +121,13 @@ def load_scalers():
         st.error(f"Error al cargar los escaladores: {e}")
         return None, None
 
-# ===================================================
-# Acceder a los secrets almacenados en Streamlit Cloud
-# ===================================================
 server = st.secrets["server"]
 database = st.secrets["database"]
 username = st.secrets["username"]
 password = st.secrets["password"]
 
-# ===================================================
-# Configuración de la conexión a la base de datos
-# ===================================================
 conn_str = f'DRIVER={{ODBC Driver 17 for SQL Server}};SERVER={server};DATABASE={database};UID={username};PWD={password}'
 
-# ===================================================
-# Inicializar el valor por defecto en session_state
-# ===================================================
 if "selected_equipment" not in st.session_state:
     st.session_state["selected_equipment"] = "C17"
 
@@ -158,9 +144,6 @@ selected_equipment = st.selectbox(
 if st.session_state["selected_equipment"] != selected_equipment:
     st.session_state["selected_equipment"] = selected_equipment
 
-# ===================================================
-# Consulta SQL
-# ===================================================
 query = f"""
 SELECT
        [EquipmentName],
@@ -354,7 +337,6 @@ timestamp_column = "New_Date/Time"
 target_column = "Engine Oil Temperature-Engine (Deg F)"
 observable_columns = [col for col in resampled_data.columns if col != timestamp_column]
 
-# Solo predecir si el modelo y los escaladores están cargados
 if model is not None and observable_scaler is not None and target_scaler is not None:
     if target_column not in resampled_data.columns or timestamp_column not in resampled_data.columns:
         st.error("Faltan columnas obligatorias en el DataFrame.")
@@ -388,27 +370,32 @@ if model is not None and observable_scaler is not None and target_scaler is not 
 
             st.write("### Predicciones generadas")
             st.dataframe(predictions)
-
             st.write("### Columnas en el DataFrame de predicciones:")
             st.write(predictions.columns.tolist())
 
+            # Renombrar la columna de predicciones para distinguirla de los valores reales
+            # Si las predicciones son las únicas en la columna target, las renombramos
+            if target_column in predictions.columns:
+                predictions.rename(columns={target_column: f"{target_column}_pred"}, inplace=True)
+
             fig, ax = plt.subplots(figsize=(12, 6))
-            ax.plot(
-                predictions[timestamp_column],
-                #predictions[f"{target_column}_prediction"],
-                predictions[target_column],
-                label="Predicción",
-                linestyle="--",
-                color="red",
-            )
-            ax.plot(
-                predictions[timestamp_column],
-                predictions[target_column],
-                label="Real",
-                linestyle="-",
-                color="blue",
-            )
-            ax.set_title("Predicción vs Real")
+            # Graficar predicciones
+            if f"{target_column}_pred" in predictions.columns:
+                ax.plot(
+                    predictions[timestamp_column],
+                    predictions[f"{target_column}_pred"],
+                    label="Predicción",
+                    linestyle="--",
+                    color="red",
+                )
+            # Graficar valores reales (si están en predictions)
+            if add_known_ground_truth := True:
+                # Si add_known_ground_truth=True, puede haber col real en predictions
+                # Si no aparece, intentamos usar resampled_data
+                # Aquí asumimos que no está, así que no graficamos real en este plot
+                pass
+
+            ax.set_title("Predicción vs Real (en el futuro no habrá valores reales aún)")
             ax.legend()
             plt.grid()
             st.pyplot(fig)
@@ -416,7 +403,7 @@ if model is not None and observable_scaler is not None and target_scaler is not 
             y_min, y_max = 150, 245
 
             st.write(f"### Gráfico de Predicciones (Horizonte Futuro) {selected_equipment}")
-            prediction_col = target_column
+            prediction_col = f"{target_column}_pred"
             if prediction_col in predictions.columns:
                 fig, ax = plt.subplots(figsize=(12, 6))
                 ax.plot(
@@ -436,81 +423,44 @@ if model is not None and observable_scaler is not None and target_scaler is not 
             else:
                 st.error(f"La columna de predicciones '{prediction_col}' no está en el DataFrame de predicciones.")
 
-            # Graficar valores reales
-            resampled_data = resampled_data.sort_values(by=timestamp_column)
-            context_length = 128
-            if len(resampled_data) > context_length:
-                real_data = resampled_data.iloc[-context_length:]
-            else:
-                real_data = resampled_data
+            # Guardar las predicciones actuales en session_state para comparar en la próxima ejecución
+            current_predictions = predictions.copy()
+            st.session_state["previous_predictions"] = current_predictions
 
-            fig, ax = plt.subplots(figsize=(12, 6))
-            ax.plot(
-                real_data[timestamp_column],
-                real_data[target_column],
-                label="Valor Real",
-                linestyle="-",
-                color="blue",
-                linewidth=1,
-            )
-            ax.set_title("Valores Reales (Últimos 512 Registros)")
-            ax.set_xlabel("Tiempo")
-            ax.set_ylabel("Valores")
-            ax.set_ylim(y_min, y_max)
-            ax.legend()
-            plt.grid()
-            st.pyplot(fig)
+            # Intentar comparar predicciones previas con valores reales actuales
+            # Para tener comparación, necesitamos valores reales en las mismas marcas de tiempo.
+            # Asumimos que 'resampled_data' ahora contiene datos reales actualizados.
+            # Hacemos un merge:
+            if not st.session_state["previous_predictions"].empty:
+                # Renombrar la columna real en resampled_data a su nombre original por si cambió
+                # Si el objetivo es comparar con la ultima corrida (cuando predijimos), 
+                # necesitamos actual data. Suponiendo que resampled_data ahora contenga datos reales.
+                # target_column real debería estar en resampled_data.
+                
+                merged = pd.merge(st.session_state["previous_predictions"], resampled_data, on=timestamp_column, how="inner")
 
-            # Líneas fijas
-            fixed_lines = [
-                {"value": 230, "color": "orange", "label": "Límite 230"},
-                {"value": 239, "color": "red", "label": "Límite 239"},
-            ]
+                # Necesitamos tener tanto target_column (real) como target_column+"_pred" (predicho)
+                if target_column in merged.columns and f"{target_column}_pred" in merged.columns:
+                    merged["error"] = merged[f"{target_column}_pred"] - merged[target_column]
+                    mae = mean_absolute_error(merged[target_column], merged[f"{target_column}_pred"])
+                    rmse = np.sqrt(mean_squared_error(merged[target_column], merged[f"{target_column}_pred"]))
 
-            col1, col2 = st.columns(2)
-            with col1:
-                st.markdown(f"###### Valores Reales (Últimos 128 Registros) {selected_equipment}")
-                fig1, ax1 = plt.subplots(figsize=(6, 4))
-                ax1.plot(
-                    real_data[timestamp_column],
-                    real_data[target_column],
-                    label="Valor Real",
-                    linestyle="-",
-                    color="blue",
-                    linewidth=1,
-                )
-                for line in fixed_lines:
-                    ax1.axhline(y=line["value"], color=line["color"], linestyle="--", linewidth=1, label=line["label"])
-                ax1.set_title("Valores Reales", fontsize=12)
-                ax1.set_xlabel("Tiempo", fontsize=10)
-                ax1.set_ylabel("Valores", fontsize=10)
-                ax1.set_ylim(y_min, y_max)
-                ax1.legend(fontsize=8)
-                plt.grid()
-                st.pyplot(fig1)
+                    st.write("### Validación Continua")
+                    st.write(f"MAE: {mae}")
+                    st.write(f"RMSE: {rmse}")
 
-            with col2:
-                st.markdown(f"###### Predicciones (Horizonte 48 minutos) {selected_equipment}")
-                if prediction_col in predictions.columns:
-                    fig2, ax2 = plt.subplots(figsize=(6, 4))
-                    ax2.plot(
-                        predictions[timestamp_column],
-                        predictions[prediction_col],
-                        label="Predicción",
-                        linestyle="--",
-                        color="green",
-                    )
-                    for line in fixed_lines:
-                        ax2.axhline(y=line["value"], color=line["color"], linestyle="--", linewidth=1, label=line["label"])
-                    ax2.set_title("Predicciones Generadas", fontsize=12)
-                    ax2.set_xlabel("Tiempo", fontsize=10)
-                    ax2.set_ylabel("Valores Predichos", fontsize=10)
-                    ax2.set_ylim(y_min, y_max)
-                    ax2.legend(fontsize=8)
-                    plt.grid()
-                    st.pyplot(fig2)
+                    # Graficar bullseye chart del error
+                    fig_bullseye, ax_bullseye = plt.subplots(subplot_kw={'projection': 'polar'}, figsize=(6,6))
+                    angles = np.linspace(0, 2*np.pi, len(merged), endpoint=False)
+                    r = np.abs(merged["error"].values)
+                    sc = ax_bullseye.scatter(angles, r, c=r, cmap='RdYlGn_r', s=50)
+                    ax_bullseye.set_yticklabels([])
+                    ax_bullseye.set_xticklabels([])
+                    ax_bullseye.set_title("Bullseye Chart del Error (más cerca del centro = mejor)", y=1.08)
+                    ax_bullseye.scatter([0], [0], c='black', marker='x', s=100)
+                    st.pyplot(fig_bullseye)
                 else:
-                    st.error(f"No se encontró la columna {prediction_col} en las predicciones.")
+                    st.write("No se encuentran columnas reales y predichas para comparar (espera a que lleguen datos reales para los tiempos predichos).")
 
         except Exception as e:
             st.error(f"Error durante la predicción: {e}")
