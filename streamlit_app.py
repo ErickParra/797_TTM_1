@@ -250,9 +250,9 @@ st.dataframe(data)
 
 
 
-with st.spinner('Ejecutando consulta...'):
-    data = load_data(query, conn_str)
-st.success('Consulta completada!')
+#with st.spinner('Ejecutando consulta...'):
+#    data = load_data(query, conn_str)
+#st.success('Consulta completada!')
 
 if data.empty:
     st.error("No se encontraron datos para el equipo seleccionado.")
