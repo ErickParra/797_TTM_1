@@ -446,25 +446,39 @@ def perform_backtesting(data, pipeline, context_length, freq, timestamp_column, 
     for i in range(context_length, n - prediction_length + 1, step):
         st.write(f"Procesando ventana {i - context_length} a {i + prediction_length}")
         train_data = data.iloc[i - context_length:i]
+
         try:
             forecast = pipeline(train_data)
             forecast = forecast.tail(prediction_length)
-            for _, row in forecast.iterrows():
-                timestamp = row[timestamp_column]
-                predicted = row[target_column]
-                # Obtener el valor real correspondiente
-                actual_row = data[data[timestamp_column] == timestamp]
-                if not actual_row.empty:
-                    actual = actual_row.iloc[0][target_column]
+
+            # Obtener los datos reales correspondientes a las predicciones
+            actual_data = data.iloc[i:i + prediction_length]
+
+            # Asegurarse de que hay suficientes datos reales
+            if len(actual_data) < prediction_length:
+                st.warning(f"No hay suficientes datos reales para comparar en la iteración {i}.")
+                continue
+
+            # Iterar sobre las predicciones y los datos reales simultáneamente
+            for pred_row, actual_row in zip(forecast.itertuples(index=False), actual_data.itertuples(index=False)):
+                timestamp_pred = getattr(pred_row, timestamp_column)
+                predicted = getattr(pred_row, target_column)
+                timestamp_actual = getattr(actual_row, timestamp_column)
+                actual = getattr(actual_row, target_column)
+
+                # Verificar si los timestamps coinciden (puedes omitir esta verificación si estás seguro de la alineación)
+                if timestamp_pred == timestamp_actual:
                     backtest_results.append({
-                        'Timestamp': timestamp,
+                        'Timestamp': timestamp_pred,
                         'Predicted': predicted,
                         'Actual': actual
                     })
                 else:
-                    st.warning(f"No se encontró el valor real para el timestamp: {timestamp}")
+                    st.warning(f"Timestamps no coinciden: Predicción={timestamp_pred}, Actual={timestamp_actual}")
+
         except Exception as e:
             st.error(f"Error al procesar la ventana {i - context_length} a {i + prediction_length}: {e}")
+
     st.write(f"Backtesting finalizado. Número de resultados: {len(backtest_results)}")
     return pd.DataFrame(backtest_results)
 
