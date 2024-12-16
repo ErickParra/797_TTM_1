@@ -15,13 +15,6 @@ from tsfm_public.models.tinytimemixer import TinyTimeMixerForPrediction
 from tsfm_public.toolkit.time_series_forecasting_pipeline import TimeSeriesForecastingPipeline
 from tsfm_public.toolkit.visualization import plot_predictions
 
-from streamlit_autorefresh import st_autorefresh
-
-# ======================================
-# Auto-refresco cada 5 minutos
-# ======================================
-count = st_autorefresh(interval=5 * 60 * 1000, limit=None, key="refresh")
-
 # ======================================
 # Ajustes de paths y archivos del modelo
 # ======================================
@@ -199,11 +192,6 @@ WHERE
       ReadTime > (DATEADD(HOUR, -120, GETDATE()))
 """
 
-# Botón para refrescar manualmente la query
-if st.button("Refrescar Query"):
-    st.experimental_rerun()
-    st.stop()
-
 with st.spinner('Ejecutando consulta...'):
     data = load_data(query, conn_str)
 st.success('Consulta completada!')
@@ -312,6 +300,23 @@ display_config_file(CONFIG_PATH)
 model = load_model()
 observable_scaler, target_scaler = load_scalers()
 
+st.write("### Simulación de predicciones (Opcional)")
+uploaded_file = st.file_uploader("Sube un archivo CSV con datos de entrada", type="csv")
+if uploaded_file and observable_scaler is not None and target_scaler is not None and model is not None:
+    input_data = pd.read_csv(uploaded_file)
+    st.write("Datos de entrada cargados:")
+    st.dataframe(input_data)
+    try:
+        normalized_data = observable_scaler.transform(input_data.values)
+        input_tensor = torch.tensor(normalized_data).unsqueeze(0)
+        with torch.no_grad():
+            raw_predictions = model(input_tensor)
+        descaled_predictions = target_scaler.inverse_transform(raw_predictions.numpy().squeeze(0))
+        st.write("Predicciones desescaladas:")
+        st.dataframe(descaled_predictions)
+    except Exception as e:
+        st.error(f"Error durante la predicción: {e}")
+
 resampled_data = resampled_data.reset_index()
 if 'ReadTime' in resampled_data.columns:
     resampled_data.rename(columns={'ReadTime': 'New_Date/Time'}, inplace=True)
@@ -368,37 +373,94 @@ if model is not None and observable_scaler is not None and target_scaler is not 
             st.write("### Columnas en el DataFrame de predicciones:")
             st.write(predictions.columns.tolist())
 
-            # Renombrar la columna de predicciones para distinguirla
+            # Renombrar la columna de predicciones para distinguirla de los valores reales
+            # Si las predicciones son las únicas en la columna target, las renombramos
             if target_column in predictions.columns:
                 predictions.rename(columns={target_column: f"{target_column}_pred"}, inplace=True)
 
-            # Guardar las predicciones actuales en session_state
+            fig, ax = plt.subplots(figsize=(12, 6))
+            # Graficar predicciones
+            if f"{target_column}_pred" in predictions.columns:
+                ax.plot(
+                    predictions[timestamp_column],
+                    predictions[f"{target_column}_pred"],
+                    label="Predicción",
+                    linestyle="--",
+                    color="red",
+                )
+            # Graficar valores reales (si están en predictions)
+            if add_known_ground_truth := True:
+                # Si add_known_ground_truth=True, puede haber col real en predictions
+                # Si no aparece, intentamos usar resampled_data
+                # Aquí asumimos que no está, así que no graficamos real en este plot
+                pass
+
+            ax.set_title("Predicción vs Real (en el futuro no habrá valores reales aún)")
+            ax.legend()
+            plt.grid()
+            st.pyplot(fig)
+
+            y_min, y_max = 150, 245
+
+            st.write(f"### Gráfico de Predicciones (Horizonte Futuro) {selected_equipment}")
+            prediction_col = f"{target_column}_pred"
+            if prediction_col in predictions.columns:
+                fig, ax = plt.subplots(figsize=(12, 6))
+                ax.plot(
+                    predictions[timestamp_column],
+                    predictions[prediction_col],
+                    label="Predicción",
+                    linestyle="--",
+                    color="green",
+                )
+                ax.set_title(f"Predicciones Generadas (Horizonte Futuro) {selected_equipment}")
+                ax.set_xlabel("Tiempo")
+                ax.set_ylabel("Valores Predichos")
+                ax.set_ylim(y_min, y_max)
+                ax.legend()
+                plt.grid()
+                st.pyplot(fig)
+            else:
+                st.error(f"La columna de predicciones '{prediction_col}' no está en el DataFrame de predicciones.")
+
+            # Guardar las predicciones actuales en session_state para comparar en la próxima ejecución
             current_predictions = predictions.copy()
             st.session_state["previous_predictions"] = current_predictions
 
             # Intentar comparar predicciones previas con valores reales actuales
-            merged = pd.merge(st.session_state["previous_predictions"], resampled_data, on=timestamp_column, how="inner")
-            if target_column in merged.columns and f"{target_column}_pred" in merged.columns:
-                merged["error"] = merged[f"{target_column}_pred"] - merged[target_column]
-                mae = mean_absolute_error(merged[target_column], merged[f"{target_column}_pred"])
-                rmse = np.sqrt(mean_squared_error(merged[target_column], merged[f"{target_column}_pred"]))
+            # Para tener comparación, necesitamos valores reales en las mismas marcas de tiempo.
+            # Asumimos que 'resampled_data' ahora contiene datos reales actualizados.
+            # Hacemos un merge:
+            if not st.session_state["previous_predictions"].empty:
+                # Renombrar la columna real en resampled_data a su nombre original por si cambió
+                # Si el objetivo es comparar con la ultima corrida (cuando predijimos), 
+                # necesitamos actual data. Suponiendo que resampled_data ahora contenga datos reales.
+                # target_column real debería estar en resampled_data.
+                
+                merged = pd.merge(st.session_state["previous_predictions"], resampled_data, on=timestamp_column, how="inner")
 
-                st.write("### Validación Continua")
-                st.write(f"MAE: {mae}")
-                st.write(f"RMSE: {rmse}")
+                # Necesitamos tener tanto target_column (real) como target_column+"_pred" (predicho)
+                if target_column in merged.columns and f"{target_column}_pred" in merged.columns:
+                    merged["error"] = merged[f"{target_column}_pred"] - merged[target_column]
+                    mae = mean_absolute_error(merged[target_column], merged[f"{target_column}_pred"])
+                    rmse = np.sqrt(mean_squared_error(merged[target_column], merged[f"{target_column}_pred"]))
 
-                # Graficar bullseye chart del error
-                fig_bullseye, ax_bullseye = plt.subplots(subplot_kw={'projection': 'polar'}, figsize=(6,6))
-                angles = np.linspace(0, 2*np.pi, len(merged), endpoint=False)
-                r = np.abs(merged["error"].values)
-                sc = ax_bullseye.scatter(angles, r, c=r, cmap='RdYlGn_r', s=50)
-                ax_bullseye.set_yticklabels([])
-                ax_bullseye.set_xticklabels([])
-                ax_bullseye.set_title("Bullseye Chart del Error (más cerca del centro = mejor)", y=1.08)
-                ax_bullseye.scatter([0], [0], c='black', marker='x', s=100)
-                st.pyplot(fig_bullseye)
-            else:
-                st.write("Aún no hay valores reales para las marcas de tiempo predichas. Espera a que la consulta se refresque y lleguen datos reales.")
+                    st.write("### Validación Continua")
+                    st.write(f"MAE: {mae}")
+                    st.write(f"RMSE: {rmse}")
+
+                    # Graficar bullseye chart del error
+                    fig_bullseye, ax_bullseye = plt.subplots(subplot_kw={'projection': 'polar'}, figsize=(6,6))
+                    angles = np.linspace(0, 2*np.pi, len(merged), endpoint=False)
+                    r = np.abs(merged["error"].values)
+                    sc = ax_bullseye.scatter(angles, r, c=r, cmap='RdYlGn_r', s=50)
+                    ax_bullseye.set_yticklabels([])
+                    ax_bullseye.set_xticklabels([])
+                    ax_bullseye.set_title("Bullseye Chart del Error (más cerca del centro = mejor)", y=1.08)
+                    ax_bullseye.scatter([0], [0], c='black', marker='x', s=100)
+                    st.pyplot(fig_bullseye)
+                else:
+                    st.write("No se encuentran columnas reales y predichas para comparar (espera a que lleguen datos reales para los tiempos predichos).")
 
         except Exception as e:
             st.error(f"Error durante la predicción: {e}")
