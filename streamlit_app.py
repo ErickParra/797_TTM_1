@@ -713,3 +713,4 @@ if "real_vs_predicted" in st.session_state and not st.session_state["real_vs_pre
     ax.legend()
     plt.grid()
     st.pyplot(fig)
+
