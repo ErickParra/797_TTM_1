@@ -649,3 +649,42 @@ ax.set_title("Predicción vs Real")
 ax.legend()
 plt.grid()
 st.pyplot(fig)
+
+
+st.write("Min timestamp in predictions:", predictions[timestamp_column].min())
+st.write("Max timestamp in predictions:", predictions[timestamp_column].max())
+st.write("Max timestamp in resampled_data:", max_timestamp_real)
+
+
+# Datos reales hasta max_timestamp_real
+df_real = resampled_data[resampled_data[timestamp_column] <= max_timestamp_real].copy()
+df_real.rename(columns={target_column: "Real"}, inplace=True)
+
+# Datos futuros (predicciones) - timestamps posteriores a max_timestamp_real
+df_pred = predictions[predictions[timestamp_column] > max_timestamp_real].copy()
+df_pred.rename(columns={target_column: "Predicted"}, inplace=True)
+
+fig, ax = plt.subplots(figsize=(12, 6))
+
+# Graficar valores reales (desde resampled_data, no desde predictions)
+ax.plot(
+    df_real[timestamp_column],
+    df_real["Real"],
+    label="Real",
+    linestyle="-",
+    color="blue",
+)
+
+# Graficar valores predichos (desde predictions)
+ax.plot(
+    df_pred[timestamp_column],
+    df_pred["Predicted"],
+    label="Predicción",
+    linestyle="--",
+    color="red",
+)
+
+ax.set_title("Predicción vs Real")
+ax.legend()
+plt.grid()
+st.pyplot(fig)
