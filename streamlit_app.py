@@ -601,3 +601,19 @@ else:
     st.error("No se pueden realizar predicciones porque el modelo o los escaladores no están cargados correctamente.")
 
 
+
+
+if not st.session_state["real_vs_predicted"].empty:
+    st.write("### Gráfico del Error en el Tiempo")
+    real_vs_predicted = st.session_state["real_vs_predicted"]
+    real_vs_predicted["Error"] = real_vs_predicted["Engine Oil Temperature (Deg F)"] - real_vs_predicted["Predicted"]
+
+    fig, ax = plt.subplots(figsize=(12, 6))
+    ax.plot(real_vs_predicted["ReadTime"], real_vs_predicted["Error"], color="orange", label="Error")
+    ax.axhline(0, color="gray", linestyle="--")
+    ax.set_title("Error entre Valores Reales y Predichos")
+    ax.set_xlabel("Tiempo")
+    ax.set_ylabel("Error (°F)")
+    ax.legend()
+    plt.grid()
+    st.pyplot(fig)
