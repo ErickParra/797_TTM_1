@@ -603,17 +603,34 @@ else:
 
 
 
-if not st.session_state["real_vs_predicted"].empty:
-    st.write("### Gráfico del Error en el Tiempo")
-    real_vs_predicted = st.session_state["real_vs_predicted"]
-    real_vs_predicted["Error"] = real_vs_predicted["Engine Oil Temperature (Deg F)"] - real_vs_predicted["Predicted"]
+st.write("### Columnas en el DataFrame de predicciones:")
+st.write(predictions.columns.tolist())
 
-    fig, ax = plt.subplots(figsize=(12, 6))
-    ax.plot(real_vs_predicted["ReadTime"], real_vs_predicted["Error"], color="orange", label="Error")
-    ax.axhline(0, color="gray", linestyle="--")
-    ax.set_title("Error entre Valores Reales y Predichos")
-    ax.set_xlabel("Tiempo")
-    ax.set_ylabel("Error (°F)")
-    ax.legend()
-    plt.grid()
-    st.pyplot(fig)
+# Asumiremos que la columna de predicción se llama:
+prediction_col = f"{target_column}_prediction"
+
+# Gráfico comparativo (Real vs Predicción)
+fig, ax = plt.subplots(figsize=(12, 6))
+ax.plot(
+    predictions[timestamp_column],
+    predictions[target_column],
+    label="Real",
+    linestyle="-",
+    color="blue",
+)
+
+if prediction_col in predictions.columns:
+    ax.plot(
+        predictions[timestamp_column],
+        predictions[prediction_col],
+        label="Predicción",
+        linestyle="--",
+        color="red",
+    )
+else:
+    st.error(f"No se encontró la columna de predicciones {prediction_col} en predictions.")
+
+ax.set_title("Predicción vs Real")
+ax.legend()
+plt.grid()
+st.pyplot(fig)
