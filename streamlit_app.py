@@ -444,23 +444,27 @@ def perform_backtesting(data, pipeline, context_length, freq, timestamp_column, 
     st.write(f"Iniciando backtesting con {n} registros.")
 
     for i in range(context_length, n - prediction_length + 1, step):
+        st.write(f"Procesando ventana {i - context_length} a {i + prediction_length}")
         train_data = data.iloc[i - context_length:i]
-        forecast = pipeline(train_data)
-        forecast = forecast.tail(prediction_length)
-        for _, row in forecast.iterrows():
-            timestamp = row[timestamp_column]
-            predicted = row[target_column]
-            # Obtener el valor real correspondiente
-            actual_row = data[data[timestamp_column] == timestamp]
-            if not actual_row.empty:
-                actual = actual_row.iloc[0][target_column]
-                backtest_results.append({
-                    'Timestamp': timestamp,
-                    'Predicted': predicted,
-                    'Actual': actual
-                })
-            else:
-                st.warning(f"No se encontró el valor real para el timestamp: {timestamp}")
+        try:
+            forecast = pipeline(train_data)
+            forecast = forecast.tail(prediction_length)
+            for _, row in forecast.iterrows():
+                timestamp = row[timestamp_column]
+                predicted = row[target_column]
+                # Obtener el valor real correspondiente
+                actual_row = data[data[timestamp_column] == timestamp]
+                if not actual_row.empty:
+                    actual = actual_row.iloc[0][target_column]
+                    backtest_results.append({
+                        'Timestamp': timestamp,
+                        'Predicted': predicted,
+                        'Actual': actual
+                    })
+                else:
+                    st.warning(f"No se encontró el valor real para el timestamp: {timestamp}")
+        except Exception as e:
+            st.error(f"Error al procesar la ventana {i - context_length} a {i + prediction_length}: {e}")
     st.write(f"Backtesting finalizado. Número de resultados: {len(backtest_results)}")
     return pd.DataFrame(backtest_results)
 
