@@ -75,7 +75,6 @@ def load_data(query, conn_str):
         st.error(f"Error al conectar a la base de datos: {e}")
         return pd.DataFrame()
 
-
 # Conversión de unidades
 def convert_units(resampled_data):
     # Conversión de presión: kPa a psi
@@ -241,8 +240,6 @@ WHERE
     st.session_state["query_data"] = load_data(query, conn_str)
 
 st.button("Actualizar Query SQL", on_click=update_query)
-
-
 
 query = f"""
 SELECT
@@ -475,22 +472,41 @@ if model is not None and observable_scaler is not None and target_scaler is not 
             st.write("### Columnas en el DataFrame de predicciones:")
             st.write(predictions.columns.tolist())
 
+            # Gráfico Comparativo (Real vs Predicción)
+            st.write("### Gráfico Comparativo: Real vs Predicción")
+            # Obtener el timestamp máximo de los datos reales
+            max_timestamp_real = resampled_data[timestamp_column].max()
+
+            # Filtrar predicciones en el futuro
+            df_pred = predictions[predictions[timestamp_column] > max_timestamp_real].copy()
+            df_pred.rename(columns={target_column: "Predicted"}, inplace=True)
+
+            # Obtener valores reales para los timestamps de predicción (si están disponibles)
+            df_real_pred = pd.merge(df_pred, resampled_data[[timestamp_column, target_column]], 
+                                    left_on=timestamp_column, right_on=timestamp_column, how='left')
+            df_real_pred.rename(columns={target_column: "Actual"}, inplace=True)
+
             fig, ax = plt.subplots(figsize=(12, 6))
+
+            # Graficar valores reales (hasta max_timestamp_real)
+            df_real = resampled_data[resampled_data[timestamp_column] <= max_timestamp_real].copy()
             ax.plot(
-                predictions[timestamp_column],
-                #predictions[f"{target_column}_prediction"],
-                predictions[target_column],
-                label="Predicción",
-                linestyle="--",
-                color="red",
-            )
-            ax.plot(
-                predictions[timestamp_column],
-                predictions[target_column],
+                df_real[timestamp_column],
+                df_real[target_column],
                 label="Real",
                 linestyle="-",
                 color="blue",
             )
+
+            # Graficar valores predichos
+            ax.plot(
+                df_pred[timestamp_column],
+                df_pred["Predicted"],
+                label="Predicción",
+                linestyle="--",
+                color="red",
+            )
+
             ax.set_title("Predicción vs Real")
             ax.legend()
             plt.grid()
@@ -499,12 +515,12 @@ if model is not None and observable_scaler is not None and target_scaler is not 
             y_min, y_max = 150, 245
 
             st.write(f"### Gráfico de Predicciones (Horizonte Futuro) {selected_equipment}")
-            prediction_col = target_column
-            if prediction_col in predictions.columns:
+            prediction_col = "Predicted"
+            if prediction_col in df_real_pred.columns:
                 fig, ax = plt.subplots(figsize=(12, 6))
                 ax.plot(
-                    predictions[timestamp_column],
-                    predictions[prediction_col],
+                    df_real_pred[timestamp_column],
+                    df_real_pred[prediction_col],
                     label="Predicción",
                     linestyle="--",
                     color="green",
@@ -520,12 +536,12 @@ if model is not None and observable_scaler is not None and target_scaler is not 
                 st.error(f"La columna de predicciones '{prediction_col}' no está en el DataFrame de predicciones.")
 
             # Graficar valores reales
-            resampled_data = resampled_data.sort_values(by=timestamp_column)
-            context_length = 128
-            if len(resampled_data) > context_length:
-                real_data = resampled_data.iloc[-context_length:]
+            resampled_data_sorted = resampled_data.sort_values(by=timestamp_column)
+            context_length_plot = 128
+            if len(resampled_data_sorted) > context_length_plot:
+                real_data = resampled_data_sorted.iloc[-context_length_plot:]
             else:
-                real_data = resampled_data
+                real_data = resampled_data_sorted
 
             fig, ax = plt.subplots(figsize=(12, 6))
             ax.plot(
@@ -536,7 +552,7 @@ if model is not None and observable_scaler is not None and target_scaler is not 
                 color="blue",
                 linewidth=1,
             )
-            ax.set_title("Valores Reales (Últimos 512 Registros)")
+            ax.set_title("Valores Reales (Últimos 128 Registros)")
             ax.set_xlabel("Tiempo")
             ax.set_ylabel("Valores")
             ax.set_ylim(y_min, y_max)
@@ -552,7 +568,7 @@ if model is not None and observable_scaler is not None and target_scaler is not 
 
             col1, col2 = st.columns(2)
             with col1:
-                st.markdown(f"###### Valores Reales (Últimos 128 Registros) {selected_equipment}")
+                st.markdown(f"###### Valores Reales (Últimos {context_length_plot} Registros) {selected_equipment}")
                 fig1, ax1 = plt.subplots(figsize=(6, 4))
                 ax1.plot(
                     real_data[timestamp_column],
@@ -574,11 +590,11 @@ if model is not None and observable_scaler is not None and target_scaler is not 
 
             with col2:
                 st.markdown(f"###### Predicciones (Horizonte 48 minutos) {selected_equipment}")
-                if prediction_col in predictions.columns:
+                if prediction_col in df_real_pred.columns:
                     fig2, ax2 = plt.subplots(figsize=(6, 4))
                     ax2.plot(
-                        predictions[timestamp_column],
-                        predictions[prediction_col],
+                        df_real_pred[timestamp_column],
+                        df_real_pred[prediction_col],
                         label="Predicción",
                         linestyle="--",
                         color="green",
@@ -595,96 +611,87 @@ if model is not None and observable_scaler is not None and target_scaler is not 
                 else:
                     st.error(f"No se encontró la columna {prediction_col} en las predicciones.")
 
+            # ====================================================================
+            # Comparación de Predicciones Pasadas vs Valores Reales (Backtesting)
+            # ====================================================================
+
+            st.write("### Comparación de Predicciones Pasadas vs Valores Reales")
+
+            def perform_backtesting(data, pipeline, prediction_length=96, step=96):
+                """
+                Realiza backtesting generando predicciones en ventanas deslizantes de los datos históricos.
+
+                Parameters:
+                - data: DataFrame con las columnas de tiempo y objetivo.
+                - pipeline: Pipeline de predicción.
+                - prediction_length: Número de pasos a predecir cada vez.
+                - step: Desplazamiento de la ventana en cada iteración.
+
+                Returns:
+                - backtest_df: DataFrame con Timestamp, Predicted, Actual.
+                """
+                backtest_results = []
+                n = len(data)
+                context_length = pipeline.context_length
+                freq = pipeline.freq
+
+                for i in range(context_length, n - prediction_length, step):
+                    train_data = data.iloc[i - context_length:i]
+                    forecast = pipeline(train_data)
+                    forecast = forecast.tail(prediction_length)
+                    for _, row in forecast.iterrows():
+                        timestamp = row[timestamp_column]
+                        predicted = row[target_column]
+                        # Obtener el valor real correspondiente
+                        actual_row = data[data[timestamp_column] == timestamp]
+                        if not actual_row.empty:
+                            actual = actual_row.iloc[0][target_column]
+                            backtest_results.append({
+                                'Timestamp': timestamp,
+                                'Predicted': predicted,
+                                'Actual': actual
+                            })
+                return pd.DataFrame(backtest_results)
+
+            # Realizar backtesting
+            backtest_df = perform_backtesting(resampled_data, pipeline)
+
+            if not backtest_df.empty:
+                st.write("### Tabla de Comparación de Predicciones vs Valores Reales")
+                st.dataframe(backtest_df)
+
+                # Calcular métricas de error
+                mae = mean_absolute_error(backtest_df['Actual'], backtest_df['Predicted'])
+                mse = mean_squared_error(backtest_df['Actual'], backtest_df['Predicted'])
+                st.write(f"**MAE:** {mae:.2f}")
+                st.write(f"**MSE:** {mse:.2f}")
+            else:
+                st.info("No se generaron resultados de backtesting. Asegúrate de que hay suficientes datos.")
+
+            # Opcional: Guardar en session_state
+            if not backtest_df.empty:
+                st.session_state["real_vs_predicted"] = backtest_df
+
         except Exception as e:
             st.error(f"Error durante la predicción: {e}")
 else:
     st.error("No se pueden realizar predicciones porque el modelo o los escaladores no están cargados correctamente.")
 
+# ====================================================================
+# Mostrar Tabla de Error en el Tiempo (si está en session_state)
+# ====================================================================
 
+if "real_vs_predicted" in st.session_state and not st.session_state["real_vs_predicted"].empty:
+    st.write("### Gráfico del Error en el Tiempo")
+    real_vs_predicted = st.session_state["real_vs_predicted"].copy()
+    real_vs_predicted["Error"] = real_vs_predicted["Actual"] - real_vs_predicted["Predicted"]
 
-
-# Ver las columnas del DataFrame de predicciones
-st.write("### Columnas en el DataFrame de predicciones:")
-st.write(predictions.columns.tolist())
-
-# No existe la columna prediction_col, así que debemos separar por tiempo.
-# Obtenemos la última fecha del conjunto de datos original (resampled_data)
-max_timestamp_real = resampled_data[timestamp_column].max()
-
-# Supongamos que en predictions tenemos tanto los datos reales como las predicciones,
-# y las predicciones son los timestamps futuros más allá de max_timestamp_real.
-
-# Datos reales: timestamps <= max_timestamp_real
-df_real = predictions[predictions[timestamp_column] <= max_timestamp_real].copy()
-df_real.rename(columns={target_column: "Real"}, inplace=True)
-
-# Datos futuros (predicciones): timestamps > max_timestamp_real
-df_pred = predictions[predictions[timestamp_column] > max_timestamp_real].copy()
-df_pred.rename(columns={target_column: "Predicted"}, inplace=True)
-
-# Ahora tenemos df_real con "Real" y df_pred con "Predicted".
-# Podemos graficar directamente si queremos ver la comparación en el tiempo extendido.
-
-fig, ax = plt.subplots(figsize=(12, 6))
-
-# Graficar valores reales
-ax.plot(
-    df_real[timestamp_column],
-    df_real["Real"],
-    label="Real",
-    linestyle="-",
-    color="blue",
-)
-
-# Graficar valores predichos
-ax.plot(
-    df_pred[timestamp_column],
-    df_pred["Predicted"],
-    label="Predicción",
-    linestyle="--",
-    color="red",
-)
-
-ax.set_title("Predicción vs Real")
-ax.legend()
-plt.grid()
-st.pyplot(fig)
-
-
-st.write("Min timestamp in predictions:", predictions[timestamp_column].min())
-st.write("Max timestamp in predictions:", predictions[timestamp_column].max())
-st.write("Max timestamp in resampled_data:", max_timestamp_real)
-
-
-# Datos reales hasta max_timestamp_real
-df_real = resampled_data[resampled_data[timestamp_column] <= max_timestamp_real].copy()
-df_real.rename(columns={target_column: "Real"}, inplace=True)
-
-# Datos futuros (predicciones) - timestamps posteriores a max_timestamp_real
-df_pred = predictions[predictions[timestamp_column] > max_timestamp_real].copy()
-df_pred.rename(columns={target_column: "Predicted"}, inplace=True)
-
-fig, ax = plt.subplots(figsize=(12, 6))
-
-# Graficar valores reales (desde resampled_data, no desde predictions)
-ax.plot(
-    df_real[timestamp_column],
-    df_real["Real"],
-    label="Real",
-    linestyle="-",
-    color="blue",
-)
-
-# Graficar valores predichos (desde predictions)
-ax.plot(
-    df_pred[timestamp_column],
-    df_pred["Predicted"],
-    label="Predicción",
-    linestyle="--",
-    color="red",
-)
-
-ax.set_title("Predicción vs Real")
-ax.legend()
-plt.grid()
-st.pyplot(fig)
+    fig, ax = plt.subplots(figsize=(12, 6))
+    ax.plot(real_vs_predicted["Timestamp"], real_vs_predicted["Error"], color="orange", label="Error")
+    ax.axhline(0, color="gray", linestyle="--")
+    ax.set_title("Error entre Valores Reales y Predichos")
+    ax.set_xlabel("Tiempo")
+    ax.set_ylabel("Error (°F)")
+    ax.legend()
+    plt.grid()
+    st.pyplot(fig)
