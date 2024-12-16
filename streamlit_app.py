@@ -1,36 +1,35 @@
-import os
-import json
-import pyodbc
-import torch
-import joblib
-import pytz
-import numpy as np
+import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+import pyodbc
+import numpy as np
+from sklearn.preprocessing import PolynomialFeatures
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error
+
 import streamlit as st
+import pandas as pd
+import matplotlib.pyplot as plt
+import pyodbc
 from datetime import datetime, timedelta
-from sklearn.metrics import mean_absolute_error, mean_squared_error
 from transformers import AutoConfig
+import torch
+import pytz
+import joblib
+import os
+import json
+
 from tsfm_public.models.tinytimemixer import TinyTimeMixerForPrediction
+from tsfm_public.toolkit.visualization import plot_predictions
 from tsfm_public.toolkit.time_series_forecasting_pipeline import TimeSeriesForecastingPipeline
-from streamlit_autorefresh import st_autorefresh
 
-# ===================================================
-# Ajuste para refrescar automáticamente cada 5 minutos
-# ===================================================
-st_autorefresh(interval=5 * 60 * 1000, limit=None, key="refresh")
-
-# ===================================================
 # Acceder a los secrets almacenados en Streamlit Cloud
-# ===================================================
 server = st.secrets["server"]
 database = st.secrets["database"]
 username = st.secrets["username"]
 password = st.secrets["password"]
 
-# ===================================================
-# Funciones auxiliares
-# ===================================================
 @st.cache_data
 def load_data(query, conn_str):
     try:
@@ -42,129 +41,17 @@ def load_data(query, conn_str):
         st.error(f"Error al conectar a la base de datos: {e}")
         return pd.DataFrame()
 
-@st.cache_resource
-def load_ttm_model():
-    try:
-        # Cargar configuración del modelo
-        config = TinyTimeMixerForPrediction.from_pretrained(config_path)
-        
-        # Cargar modelo TTM
-        model = TinyTimeMixerForPrediction.from_pretrained(
-            pretrained_model_name_or_path=MODEL_PATH,
-            config=config,
-            from_tf=False,
-            torch_dtype=torch.float32,
-            low_cpu_mem_usage=True,
-        )
-        model.eval()  # Modo evaluación
-        return model
-    except Exception as e:
-        st.error(f"Error al cargar el modelo: {e}")
-        return None
-
-@st.cache_resource
-def load_scalers():
-    try:
-        observable_scaler = joblib.load(OBSERVABLE_SCALER_PATH)
-        target_scaler = joblib.load(TARGET_SCALER_PATH)
-        return observable_scaler, target_scaler
-    except Exception as e:
-        st.error(f"Error al cargar los escaladores: {e}")
-        return None, None
-
-def display_config_file(config_path):
-    try:
-        with open(config_path, "r") as file:
-            config_data = json.load(file)
-        
-        st.write("### Contenido del archivo config.json")
-        st.json(config_data)
-    except FileNotFoundError:
-        st.error(f"El archivo {config_path} no se encontró.")
-    except json.JSONDecodeError as e:
-        st.error(f"Error al leer el archivo JSON: {e}")
-    except Exception as e:
-        st.error(f"Error inesperado: {e}")
-
-
-def convert_units(resampled_data):
-    # Conversión de presión: kPa a psi
-    pressure_columns = [
-        "Engine Oil Pressure-Engine (psi)",
-        "Service Brake Accumulator Pressure-Brake ECM (psi)",
-        "Differential (Axle) Lube Pressure-Brake ECM (psi)",
-        "Steering Accumulator Oil Pressure-Chassis Ctrl (psi)",
-        "Machine System Air Pressure-Chassis Ctrl (psi)",
-        "Intake Manifold #2 Pressure-Engine (psi)",
-        "Intake Manifold Pressure-Engine (psi)",
-        "Left Rear Parking Brake Oil Pressure-Brake ECM (psi)",
-        "Fuel Pressure-Engine (psi)",
-        "Right Rear Parking Brake Oil Pressure-Brake ECM (psi)",
-        "Oil Filter Differential Pressure-Engine (psi)",
-        "Engine Coolant Pump Outlet Pressure (absolute)-Engine (psi)",
-        "Desired Fuel Rail Pressure-Engine (psi)",
-        "Fuel Rail Pressure-Engine (psi)"
-    ]
-    for col in pressure_columns:
-        if col in resampled_data.columns:
-            resampled_data[col] = resampled_data[col] * 0.145038
-
-    # Conversión de temperatura: °C a °F
-    temperature_columns = [
-        "Intake Manifold Air Temperature-Engine (Deg F)",
-        "Intake Manifold #2 Air Temperature-Engine (Deg F)",
-        "Right Exhaust Temperature-Engine (Deg F)",
-        "Left Exhaust Temperature-Engine (Deg F)",
-        "Left Front Brake Oil Temperature-Brake ECM (Deg F)",
-        "Right Front Brake Oil Temperature-Brake ECM (Deg F)",
-        "Right Rear Brake Oil Temperature-Brake ECM (Deg F)",
-        "Left Rear Brake Oil Temperature-Brake ECM (Deg F)",
-        "Engine Coolant Pump Outlet Temperature-Engine (Deg F)",
-        "Engine Coolant Temperature-Engine (Deg F)",
-        "Transmission Oil Temperature-Trans Ctrl (Deg F)",
-        "Engine Oil Temperature-Engine (Deg F)"
-    ]
-    for col in temperature_columns:
-        if col in resampled_data.columns:
-            resampled_data[col] = resampled_data[col] * 9 / 5 + 32
-
-    return resampled_data
-
-def plot_bullseye_chart(errors):
-    fig, ax = plt.subplots(subplot_kw={'projection': 'polar'}, figsize=(6,6))
-    angles = np.linspace(0, 2*np.pi, len(errors), endpoint=False)
-    r = np.abs(errors)
-    sc = ax.scatter(angles, r, c=r, cmap='RdYlGn_r', s=50)
-    ax.set_yticklabels([])
-    ax.set_xticklabels([])
-    ax.set_title("Bullseye Chart del Error (más cerca del centro = mejor)", y=1.08)
-    ax.scatter([0], [0], c='black', marker='x', s=100)
-    return fig
-
-# ===================================================
-# Configuración de paths y modelo
-# ===================================================
-MODEL_PATH = "./model.safetensors"
-MODEL_DIR = "."
-config_path = "./config.json"
-OBSERVABLE_SCALER_PATH = "./observable_scaler_0.pkl"
-TARGET_SCALER_PATH = "./target_scaler_0.pkl"
-
-model = load_ttm_model()
-observable_scaler, target_scaler = load_scalers()
-
-# ===================================================
 # Configuración de la conexión a la base de datos
-# ===================================================
 conn_str = f'DRIVER={{ODBC Driver 17 for SQL Server}};SERVER={server};DATABASE={database};UID={username};PWD={password}'
 
 # Inicializar el valor por defecto en session_state si no existe
 if "selected_equipment" not in st.session_state:
-    st.session_state["selected_equipment"] = "C17"
+    st.session_state["selected_equipment"] = "C17"  # Valor inicial por defecto
 
 # Equipos disponibles
 available_equipments = ['C17', 'C18', 'C19', 'C20', 'C21', 'C22', 'C23', 'C24', 'C25', 'C32', 'C34', 'C36', 'C37', 'C38', 'C39', 'C40', 'C41', 'C42', 'C43', 'C44', 'C45', 'C46', 'C47', 'C48']
 
+# Selector inicial basado en session_state
 st.write("### Selección de Equipo Inicial")
 selected_equipment = st.selectbox(
     "Seleccione el equipo (inicial):",
@@ -236,7 +123,6 @@ if data.empty:
 st.write(f"### Datos obtenidos para el equipo: {selected_equipment}")
 st.dataframe(data)
 
-# Selector de parámetro para graficar
 selected_param = st.selectbox(
     "Seleccione un parámetro para graficar:",
     data['ParameterName'].unique()
@@ -244,15 +130,12 @@ selected_param = st.selectbox(
 
 data.loc[data['ParameterFloatValue'] == 32784, 'ParameterFloatValue'] = 0
 
-filtered_data = data[(data['ParameterName'] == selected_param) &
-                     (data['ParameterFloatValue'] >= -100)]
-
+filtered_data = data[(data['ParameterName'] == selected_param) & (data['ParameterFloatValue'] >= -100)]
 filtered_data['ReadTime'] = pd.to_datetime(filtered_data['ReadTime'])
 filtered_data = filtered_data.sort_values(by='ReadTime')
 
 st.write(f"### Gráfico de {selected_param} para el equipo  {selected_equipment}")
 fig, ax = plt.subplots(figsize=(12, 6))
-
 if not filtered_data.empty:
     ax.plot(
         filtered_data['ReadTime'], 
@@ -268,7 +151,7 @@ if not filtered_data.empty:
     plt.grid()
     st.pyplot(fig)
 else:
-    st.write("No hay datos disponibles para ese parámetro en el rango especificado.")
+    st.write("No hay datos disponibles para ese parámetro.")
 
 st.write("### Valores únicos en ParameterName")
 unique_parameters = data['ParameterName'].unique()
@@ -277,19 +160,16 @@ st.write("#### Lista de parámetros únicos:")
 st.write(unique_parameters)
 
 data['ReadTime'] = pd.to_datetime(data['ReadTime'])
-
 pivoted_data = data.pivot_table(
-    index='ReadTime',
-    columns='ParameterName',
+    index='ReadTime', 
+    columns='ParameterName', 
     values='ParameterFloatValue'
 )
 
 resampled_data = pivoted_data.resample('30S').mean().interpolate(method='linear')
-
 st.write("### Datos resampleados a 30 segundos")
 st.dataframe(resampled_data.head())
 
-# Mapeo de columnas
 vims_column_mapping = {
     "Parking Brake (797F)": "Parking Brake-Brake ECM ()",
     "Cold Mode (797F)": "Cold Mode-Engine ()",
@@ -326,8 +206,50 @@ vims_column_mapping = {
     "Engine Oil Temperature (797F)": "Engine Oil Temperature-Engine (Deg F)"
 }
 
-resampled_data.rename(columns=vims_column_mapping, inplace=True)
+def convert_units(resampled_data):
+    # Conversión de presión: kPa a psi
+    pressure_columns = [
+        "Engine Oil Pressure-Engine (psi)",
+        "Service Brake Accumulator Pressure-Brake ECM (psi)",
+        "Differential (Axle) Lube Pressure-Brake ECM (psi)",
+        "Steering Accumulator Oil Pressure-Chassis Ctrl (psi)",
+        "Machine System Air Pressure-Chassis Ctrl (psi)",
+        "Intake Manifold #2 Pressure-Engine (psi)",
+        "Intake Manifold Pressure-Engine (psi)",
+        "Left Rear Parking Brake Oil Pressure-Brake ECM (psi)",
+        "Fuel Pressure-Engine (psi)",
+        "Right Rear Parking Brake Oil Pressure-Brake ECM (psi)",
+        "Oil Filter Differential Pressure-Engine (psi)",
+        "Engine Coolant Pump Outlet Pressure (absolute)-Engine (psi)",
+        "Desired Fuel Rail Pressure-Engine (psi)",
+        "Fuel Rail Pressure-Engine (psi)"
+    ]
+    for col in pressure_columns:
+        if col in resampled_data.columns:
+            resampled_data[col] = resampled_data[col] * 0.145038
 
+    # Conversión de temperatura: °C a °F
+    temperature_columns = [
+        "Intake Manifold Air Temperature-Engine (Deg F)",
+        "Intake Manifold #2 Air Temperature-Engine (Deg F)",
+        "Right Exhaust Temperature-Engine (Deg F)",
+        "Left Exhaust Temperature-Engine (Deg F)",
+        "Left Front Brake Oil Temperature-Brake ECM (Deg F)",
+        "Right Front Brake Oil Temperature-Brake ECM (Deg F)",
+        "Right Rear Brake Oil Temperature-Brake ECM (Deg F)",
+        "Left Rear Brake Oil Temperature-Brake ECM (Deg F)",
+        "Engine Coolant Pump Outlet Temperature-Engine (Deg F)",
+        "Engine Coolant Temperature-Engine (Deg F)",
+        "Transmission Oil Temperature-Trans Ctrl (Deg F)",
+        "Engine Oil Temperature-Engine (Deg F)"
+    ]
+    for col in temperature_columns:
+        if col in resampled_data.columns:
+            resampled_data[col] = resampled_data[col] * 9 / 5 + 32
+
+    return resampled_data
+
+resampled_data.rename(columns=vims_column_mapping, inplace=True)
 resampled_data = convert_units(resampled_data)
 
 resampled_data.index = resampled_data.index.tz_localize('UTC').tz_convert('America/Santiago')
@@ -336,13 +258,69 @@ resampled_data = resampled_data.sort_index(ascending=False)
 st.write("### Datos procesados después de conversiones y renombrados")
 st.dataframe(resampled_data.head())
 
+config_path = "./config.json"
+MODEL_DIR = "."  
+MODEL_PATH = "./model.safetensors"
+OBSERVABLE_SCALER_PATH = "./observable_scaler_0.pkl"
+TARGET_SCALER_PATH = "./target_scaler_0.pkl"
+
+def display_config_file(config_path):
+    try:
+        with open(config_path, "r") as file:
+            config_data = json.load(file)
+            st.write("### Contenido del archivo config.json")
+            st.json(config_data)
+    except FileNotFoundError:
+        st.error(f"El archivo {config_path} no se encontró.")
+    except json.JSONDecodeError as e:
+        st.error(f"Error al leer el archivo JSON: {e}")
+    except Exception as e:
+        st.error(f"Error inesperado: {e}")
+
 display_config_file(config_path)
 
-# Verificación del modelo y escaladores
+# Cargar configuración desde el directorio (no el archivo suelto)
+try:
+    config = AutoConfig.from_pretrained(MODEL_DIR)
+except Exception as e:
+    st.error(f"No se pudo cargar la configuración: {e}")
+
+@st.cache_resource
+def load_model():
+    try:
+        model = TinyTimeMixerForPrediction.from_pretrained(
+            pretrained_model_name_or_path=MODEL_DIR,
+            config=config,
+            from_tf=False,
+            torch_dtype=torch.float32,
+            low_cpu_mem_usage=True,
+        )
+        model.eval()
+        st.success("Modelo TTM cargado correctamente.")
+        return model
+    except Exception as e:
+        st.error(f"Error al cargar el modelo TTM: {e}")
+        return None
+
+model = load_model()
+
+@st.cache_resource
+def load_scalers():
+    try:
+        observable_scaler = joblib.load(OBSERVABLE_SCALER_PATH)
+        target_scaler = joblib.load(TARGET_SCALER_PATH)
+        return observable_scaler, target_scaler
+    except Exception as e:
+        st.error(f"Error al cargar los escaladores: {e}")
+        return None, None
+
+observable_scaler, target_scaler = load_scalers()
+
 if model is not None:
-    st.success("Modelo TTM cargado correctamente.")
+    st.write("### Detalles del modelo cargado")
+    st.write(model)
 else:
-    st.error("No se pudo cargar el modelo TTM.")
+    st.error("No se pudo cargar el modelo. Revisa los archivos y las configuraciones.")
 
 if observable_scaler is not None and target_scaler is not None:
     st.success("Escaladores cargados correctamente.")
@@ -352,8 +330,8 @@ else:
 st.write("### Configuración del Modelo")
 try:
     with open(config_path, "r") as f:
-        cfg = f.read()
-        st.json(json.loads(cfg))
+        cfg = json.load(f)
+        st.json(cfg)
 except FileNotFoundError:
     st.error("Archivo de configuración no encontrado.")
 
@@ -375,13 +353,13 @@ if uploaded_file:
     except Exception as e:
         st.error(f"Error durante la predicción: {e}")
 
-# Ajustar el índice
 resampled_data = resampled_data.reset_index()
 if 'ReadTime' in resampled_data.columns:
     resampled_data.rename(columns={'ReadTime': 'New_Date/Time'}, inplace=True)
 
 st.write("### Inspección de columnas y formatos")
-st.write("#### Nombres de las columnas", resampled_data.columns.tolist())
+st.write("#### Nombres de las columnas")
+st.write(resampled_data.columns.tolist())
 st.write("#### Tipos de datos de las columnas")
 st.write(resampled_data.dtypes)
 st.write("#### Primeros registros del DataFrame")
@@ -391,7 +369,6 @@ st.dataframe(resampled_data.describe())
 st.write("#### Verificación de valores nulos")
 st.write(resampled_data.isnull().sum())
 
-# Definir las columnas requeridas
 timestamp_column = "New_Date/Time"
 target_column = "Engine Oil Temperature-Engine (Deg F)"
 observable_columns = [col for col in resampled_data.columns if col != timestamp_column]
@@ -508,39 +485,13 @@ ax.legend()
 plt.grid()
 st.pyplot(fig)
 
-# Validación continua: Comparar predicciones previas con datos reales actuales
-if "previous_predictions" not in st.session_state:
-    st.session_state["previous_predictions"] = pd.DataFrame()
-
-if not st.session_state["previous_predictions"].empty:
-    # Unir predicciones previas con datos reales actuales
-    merged = pd.merge(st.session_state["previous_predictions"], resampled_data, on=timestamp_column, how="inner")
-    pred_col = f"{target_column}_prediction"
-    if pred_col in merged.columns and target_column in merged.columns:
-        merged["error"] = merged[pred_col] - merged[target_column]
-        mae = mean_absolute_error(merged[target_column], merged[pred_col])
-        rmse = np.sqrt(mean_squared_error(merged[target_column], merged[pred_col]))
-
-        st.write("### Validación Continua")
-        st.write(f"MAE (Última Ventana): {mae}")
-        st.write(f"RMSE (Última Ventana): {rmse}")
-
-        fig_bullseye = plot_bullseye_chart(merged["error"].values)
-        st.pyplot(fig_bullseye)
-    else:
-        st.write("No se encuentran columnas para la comparación de predicciones previas.")
-
-st.session_state["previous_predictions"] = predictions.copy()
-
-# Líneas fijas para referencias
+# (Opcional) Líneas fijas y gráficos en columnas
 fixed_lines = [
     {"value": 230, "color": "orange", "label": "Límite 230"},
     {"value": 239, "color": "red", "label": "Límite 239"},
 ]
 
-# Crear dos columnas para ver reales y predicciones lado a lado
 col1, col2 = st.columns(2)
-
 with col1:
     st.markdown(f"###### Valores Reales (Últimos 128 Registros) {selected_equipment}")
     fig1, ax1 = plt.subplots(figsize=(6, 4))
