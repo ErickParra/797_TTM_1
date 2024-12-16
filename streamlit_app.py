@@ -227,7 +227,12 @@ WHERE
 
 # Botón para refrescar la query SQL
 def update_query():
-    st.session_state["query_data"] = load_data(base_query, conn_str)
+    # Actualizar los datos en session_state
+    new_data = load_data(base_query, conn_str)
+    if not new_data.empty:
+        st.session_state["query_data"] = new_data
+    else:
+        st.warning("La consulta no retornó datos.")
 
 st.button("Actualizar Query SQL", on_click=update_query)
 
@@ -247,6 +252,10 @@ if data.empty:
 
 st.write(f"### Datos obtenidos para el equipo: {selected_equipment}")
 st.dataframe(data)
+
+# ==============================
+# Continuación del flujo de la app
+# ==============================
 
 selected_param = st.selectbox(
     "Seleccione un parámetro para graficar:",
