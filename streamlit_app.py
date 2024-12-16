@@ -15,6 +15,8 @@ from tsfm_public.models.tinytimemixer import TinyTimeMixerForPrediction
 from tsfm_public.toolkit.time_series_forecasting_pipeline import TimeSeriesForecastingPipeline
 from tsfm_public.toolkit.visualization import plot_predictions
 
+from streamlit_autorefresh import st_autorefresh  # Importar el componente
+
 # ======================================
 # Ajustes de paths y archivos del modelo
 # ======================================
@@ -170,6 +172,12 @@ if st.session_state["selected_equipment"] != selected_equipment:
     st.session_state["selected_equipment"] = selected_equipment
 
 # ===================================================
+# Autorefresh Configuración
+# ===================================================
+# Autorefresh cada 60 segundos (60000 ms), con límite de 100 refrescos
+count = st_autorefresh(interval=60000, limit=100, key="autorefresh_counter")
+
+# ===================================================
 # Consulta SQL
 # ===================================================
 # =========================
@@ -227,12 +235,11 @@ WHERE
 
 # Botón para refrescar la query SQL
 def update_query():
-    # Utilizamos un timestamp para forzar la actualización de la caché
-    refresh_timestamp = datetime.now().timestamp()
-    new_data = load_data(base_query, conn_str, refresh=refresh_timestamp)
+    # Actualizar los datos en session_state
+    new_data = load_data(base_query, conn_str, refresh=True)
     if not new_data.empty:
         st.session_state["query_data"] = new_data
-        st.experimental_rerun()  # Forzar la recarga de la aplicación para reflejar los cambios
+        # No es necesario forzar una recarga; el autorefresh se encargará de actualizar la app
     else:
         st.warning("La consulta no retornó datos.")
 
@@ -433,6 +440,7 @@ def perform_backtesting(data, pipeline, context_length, freq, timestamp_column, 
     """
     backtest_results = []
     n = len(data)
+    st.write(f"Iniciando backtesting con {n} registros.")
 
     for i in range(context_length, n - prediction_length + 1, step):
         train_data = data.iloc[i - context_length:i]
@@ -450,6 +458,9 @@ def perform_backtesting(data, pipeline, context_length, freq, timestamp_column, 
                     'Predicted': predicted,
                     'Actual': actual
                 })
+            else:
+                st.warning(f"No se encontró el valor real para el timestamp: {timestamp}")
+    st.write(f"Backtesting finalizado. Número de resultados: {len(backtest_results)}")
     return pd.DataFrame(backtest_results)
 
 # Solo predecir si el modelo y los escaladores están cargados
@@ -459,7 +470,7 @@ if model is not None and observable_scaler is not None and target_scaler is not 
     else:
         try:
             resampled_data = resampled_data.sort_values(by=timestamp_column)
-            context_length = 512
+            context_length = 256  # Reducido para probar
             if len(resampled_data) > context_length:
                 resampled_data = resampled_data.iloc[-context_length:]
 
@@ -665,6 +676,7 @@ if model is not None and observable_scaler is not None and target_scaler is not 
                 st.session_state["real_vs_predicted"] = backtest_df
             else:
                 st.info("No se generaron resultados de backtesting. Asegúrate de que hay suficientes datos.")
+                st.stop()
 
         except Exception as e:
             st.error(f"Error durante la predicción: {e}")
