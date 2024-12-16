@@ -186,8 +186,13 @@ if st.session_state["selected_equipment"] != selected_equipment:
 # ===================================================
 # Consulta SQL
 # ===================================================
-query = f"""
-SELECT
+
+st.title("Actualización de Query y Comparación de Predicciones")
+
+# Botón para refrescar la query SQL
+def update_query():
+    query = f"""
+        SELECT
        [EquipmentName],
        [ReadTime],
        [EquipmentModel],
@@ -232,7 +237,12 @@ WHERE
       ) AND
       ParameterFloatValue IS NOT NULL AND 
       ReadTime > (DATEADD(HOUR, -120, GETDATE()))
-"""
+    """
+    st.session_state["query_data"] = load_data(query, conn_str)
+
+st.button("Actualizar Query SQL", on_click=update_query)
+
+
 
 with st.spinner('Ejecutando consulta...'):
     data = load_data(query, conn_str)
