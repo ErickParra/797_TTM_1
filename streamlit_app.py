@@ -603,7 +603,6 @@ else:
 
 
 
-
 # Ver las columnas del DataFrame de predicciones
 st.write("### Columnas en el DataFrame de predicciones:")
 st.write(predictions.columns.tolist())
