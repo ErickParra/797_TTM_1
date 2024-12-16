@@ -614,7 +614,7 @@ if model is not None and observable_scaler is not None and target_scaler is not 
             # ====================================================================
             # Comparación de Predicciones Pasadas vs Valores Reales (Backtesting)
             # ====================================================================
-
+            context_length = 128
             st.write("### Comparación de Predicciones Pasadas vs Valores Reales")
 
             def perform_backtesting(data, pipeline, prediction_length=96, step=96):
