@@ -137,3 +137,58 @@ if not st.session_state["query_data"].empty:
     st.dataframe(st.session_state["query_data"])
 else:
     st.warning("Presiona el botón para cargar datos.")
+
+
+model, observable_scaler, target_scaler = load_model_and_scalers()
+
+if model and not st.session_state["query_data"].empty:
+    st.write("### Generación de Predicciones")
+    data = st.session_state["query_data"].copy()
+
+    # Pivotar y preparar datos
+    pivot_data = data.pivot(index="ReadTime", columns="ParameterName", values="ParameterFloatValue").reset_index()
+    input_data = pivot_data.drop(columns="ReadTime").values
+    normalized_data = observable_scaler.transform(input_data)
+
+    # Predicción
+    input_tensor = torch.tensor(normalized_data).unsqueeze(0)
+    with torch.no_grad():
+        predictions = model(input_tensor)
+    descaled_predictions = target_scaler.inverse_transform(predictions.numpy().squeeze(0))
+
+    # Comparación Real vs Predicho
+    pivot_data["Predicted"] = descaled_predictions[:, 0]  # Suponiendo una predicción univariada
+    st.session_state["real_vs_predicted"] = pivot_data
+
+    # Mostrar resultados
+    st.write("### Comparación Real vs Predicho")
+    st.dataframe(pivot_data)
+
+    # Gráfico
+    fig, ax = plt.subplots(figsize=(12, 6))
+    ax.plot(pivot_data["ReadTime"], pivot_data["Engine Oil Temperature (Deg F)"], label="Real", color="blue")
+    ax.plot(pivot_data["ReadTime"], pivot_data["Predicted"], label="Predicho", linestyle="--", color="red")
+    ax.set_title("Valores Reales vs Predichos")
+    ax.set_xlabel("Tiempo")
+    ax.set_ylabel("Temperatura (°F)")
+    ax.legend()
+    plt.grid()
+    st.pyplot(fig)
+else:
+    st.warning("No se han cargado los datos o el modelo.")
+
+
+if not st.session_state["real_vs_predicted"].empty:
+    st.write("### Gráfico del Error en el Tiempo")
+    real_vs_predicted = st.session_state["real_vs_predicted"]
+    real_vs_predicted["Error"] = real_vs_predicted["Engine Oil Temperature (Deg F)"] - real_vs_predicted["Predicted"]
+
+    fig, ax = plt.subplots(figsize=(12, 6))
+    ax.plot(real_vs_predicted["ReadTime"], real_vs_predicted["Error"], color="orange", label="Error")
+    ax.axhline(0, color="gray", linestyle="--")
+    ax.set_title("Error entre Valores Reales y Predichos")
+    ax.set_xlabel("Tiempo")
+    ax.set_ylabel("Error (°F)")
+    ax.legend()
+    plt.grid()
+    st.pyplot(fig)
