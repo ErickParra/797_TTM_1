@@ -60,6 +60,21 @@ if "query_data" not in st.session_state:
 if "real_vs_predicted" not in st.session_state:
     st.session_state["real_vs_predicted"] = pd.DataFrame()
 
+# =========================
+# Cargar Datos desde SQL
+# =========================
+
+@st.cache_data
+def load_data(query, conn_str):
+    try:
+        conn = pyodbc.connect(conn_str)
+        data = pd.read_sql(query, conn)
+        conn.close()
+        return data
+    except pyodbc.Error as e:
+        st.error(f"Error al conectar a la base de datos: {e}")
+        return pd.DataFrame()
+
 
 # Conversión de unidades
 def convert_units(resampled_data):
