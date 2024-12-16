@@ -248,19 +248,6 @@ if data.empty:
 st.write(f"### Datos obtenidos para el equipo: {selected_equipment}")
 st.dataframe(data)
 
-
-
-#with st.spinner('Ejecutando consulta...'):
-#    data = load_data(query, conn_str)
-#st.success('Consulta completada!')
-
-if data.empty:
-    st.error("No se encontraron datos para el equipo seleccionado.")
-    st.stop()
-
-st.write(f"### Datos obtenidos para el equipo: {selected_equipment}")
-st.dataframe(data)
-
 selected_param = st.selectbox(
     "Seleccione un parámetro para graficar:",
     data['ParameterName'].unique()
@@ -688,3 +675,6 @@ if "real_vs_predicted" in st.session_state and not st.session_state["real_vs_pre
     plt.grid()
     st.pyplot(fig)
 
+    # Opcional: Mostrar la tabla de errores
+    st.write("### Tabla de Errores")
+    st.dataframe(real_vs_predicted[['Timestamp', 'Error']])
