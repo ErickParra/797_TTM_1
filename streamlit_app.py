@@ -202,6 +202,7 @@ WHERE
 # Botón para refrescar manualmente la query
 if st.button("Refrescar Query"):
     st.experimental_rerun()
+    st.stop()
 
 with st.spinner('Ejecutando consulta...'):
     data = load_data(query, conn_str)
@@ -311,11 +312,11 @@ display_config_file(CONFIG_PATH)
 model = load_model()
 observable_scaler, target_scaler = load_scalers()
 
-st.write("### Inspección de columnas y formatos")
 resampled_data = resampled_data.reset_index()
 if 'ReadTime' in resampled_data.columns:
     resampled_data.rename(columns={'ReadTime': 'New_Date/Time'}, inplace=True)
 
+st.write("### Inspección de columnas y formatos")
 st.write("#### Nombres de las columnas")
 st.write(resampled_data.columns.tolist())
 st.write("#### Tipos de datos de las columnas")
@@ -376,7 +377,6 @@ if model is not None and observable_scaler is not None and target_scaler is not 
             st.session_state["previous_predictions"] = current_predictions
 
             # Intentar comparar predicciones previas con valores reales actuales
-            # Sólo si existen predicciones previas y ahora hay datos reales
             merged = pd.merge(st.session_state["previous_predictions"], resampled_data, on=timestamp_column, how="inner")
             if target_column in merged.columns and f"{target_column}_pred" in merged.columns:
                 merged["error"] = merged[f"{target_column}_pred"] - merged[target_column]
