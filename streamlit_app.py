@@ -470,7 +470,7 @@ if model is not None and observable_scaler is not None and target_scaler is not 
     else:
         try:
             resampled_data = resampled_data.sort_values(by=timestamp_column)
-            context_length = 256  # Reducido para probar
+            context_length = 512  # Reducido para probar
             if len(resampled_data) > context_length:
                 resampled_data = resampled_data.iloc[-context_length:]
 
