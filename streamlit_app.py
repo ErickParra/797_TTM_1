@@ -13,12 +13,15 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error
 from tsfm_public.models.tinytimemixer import TinyTimeMixerForPrediction
 from tsfm_public.toolkit.time_series_forecasting_pipeline import TimeSeriesForecastingPipeline
 
-# =========================
-# Configuración de paths
-# =========================
+# ======================================
+# Ajustes de paths y archivos del modelo
+# ======================================
+MODEL_DIR = "."
 MODEL_PATH = "./model.safetensors"
 OBSERVABLE_SCALER_PATH = "./observable_scaler_0.pkl"
 TARGET_SCALER_PATH = "./target_scaler_0.pkl"
+CONFIG_PATH = "./config.json"
+
 
 # Configuración de conexión a la base de datos
 server = st.secrets["server"]
