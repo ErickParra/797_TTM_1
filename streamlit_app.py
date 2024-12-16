@@ -235,11 +235,12 @@ WHERE
 
 # Botón para refrescar la query SQL
 def update_query():
-    # Actualizar los datos en session_state
-    new_data = load_data(base_query, conn_str, refresh=True)
+    # Generar un timestamp único para forzar la actualización de la caché
+    refresh_timestamp = datetime.now().timestamp()
+    new_data = load_data(base_query, conn_str, refresh=refresh_timestamp)
     if not new_data.empty:
         st.session_state["query_data"] = new_data
-        # No es necesario forzar una recarga; el autorefresh se encargará de actualizar la app
+        st.success("Datos actualizados correctamente.")
     else:
         st.warning("La consulta no retornó datos.")
 
@@ -470,9 +471,13 @@ if model is not None and observable_scaler is not None and target_scaler is not 
     else:
         try:
             resampled_data = resampled_data.sort_values(by=timestamp_column)
-            context_length = 512  # Reducido para probar
+            context_length = 512  # Mantener 512 como requerido por TTM
             if len(resampled_data) > context_length:
                 resampled_data = resampled_data.iloc[-context_length:]
+            else:
+                st.warning(f"Datos insuficientes para el contexto. Se requiere al menos {context_length} registros.")
+
+            st.write(f"Número de registros disponibles para backtesting: {len(resampled_data)}")
 
             freq = "30S"
             pipeline = TimeSeriesForecastingPipeline(
