@@ -27,8 +27,8 @@ CONFIG_PATH = "./config.json"
 # ======================================
 # Funciones auxiliares
 # ======================================
-@st.cache_data
-def load_data(query, conn_str):
+@st.cache_data(show_spinner=False)
+def load_data(query, conn_str, refresh):
     try:
         conn = pyodbc.connect(conn_str)
         data = pd.read_sql(query, conn)
@@ -109,7 +109,7 @@ def convert_units(resampled_data):
 # ===================================================
 # Cargar Modelo y Escaladores
 # ===================================================
-@st.cache_resource
+@st.cache_resource(show_spinner=False)
 def load_model():
     try:
         # Cargar el modelo desde el directorio (debe contener config.json y model.safetensors)
@@ -126,7 +126,7 @@ def load_model():
         st.error(f"Error al cargar el modelo TTM: {e}")
         return None
 
-@st.cache_resource
+@st.cache_resource(show_spinner=False)
 def load_scalers():
     try:
         observable_scaler = joblib.load(OBSERVABLE_SCALER_PATH)
@@ -227,10 +227,12 @@ WHERE
 
 # Botón para refrescar la query SQL
 def update_query():
-    # Actualizar los datos en session_state
-    new_data = load_data(base_query, conn_str)
+    # Utilizamos un timestamp para forzar la actualización de la caché
+    refresh_timestamp = datetime.now().timestamp()
+    new_data = load_data(base_query, conn_str, refresh=refresh_timestamp)
     if not new_data.empty:
         st.session_state["query_data"] = new_data
+        st.experimental_rerun()  # Forzar la recarga de la aplicación para reflejar los cambios
     else:
         st.warning("La consulta no retornó datos.")
 
@@ -241,7 +243,7 @@ if "query_data" in st.session_state and not st.session_state["query_data"].empty
     data = st.session_state["query_data"]
 else:
     with st.spinner('Ejecutando consulta...'):
-        data = load_data(base_query, conn_str)
+        data = load_data(base_query, conn_str, refresh=False)
     st.session_state["query_data"] = data
 
 st.success('Consulta completada!')
@@ -266,7 +268,7 @@ selected_param = st.selectbox(
 data.loc[data['ParameterFloatValue'] == 32784, 'ParameterFloatValue'] = 0
 
 # Filtrar y ordenar los datos
-filtered_data = data[(data['ParameterName'] == selected_param) & (data['ParameterFloatValue'] >= -100)]
+filtered_data = data[(data['ParameterName'] == selected_param) & (data['ParameterFloatValue'] >= -100)].copy()
 filtered_data['ReadTime'] = pd.to_datetime(filtered_data['ReadTime'])
 filtered_data = filtered_data.sort_values(by='ReadTime')
 
@@ -432,7 +434,7 @@ def perform_backtesting(data, pipeline, context_length, freq, timestamp_column, 
     backtest_results = []
     n = len(data)
 
-    for i in range(context_length, n - prediction_length, step):
+    for i in range(context_length, n - prediction_length + 1, step):
         train_data = data.iloc[i - context_length:i]
         forecast = pipeline(train_data)
         forecast = forecast.tail(prediction_length)
@@ -502,37 +504,41 @@ if model is not None and observable_scaler is not None and target_scaler is not 
                                     left_on=timestamp_column, right_on=timestamp_column, how='left')
             df_real_pred.rename(columns={target_column: "Actual"}, inplace=True)
 
-            fig, ax = plt.subplots(figsize=(12, 6))
+            # Verificar si hay predicciones futuras
+            if df_pred.empty:
+                st.warning("No hay predicciones futuras disponibles para graficar.")
+            else:
+                fig, ax = plt.subplots(figsize=(12, 6))
 
-            # Graficar valores reales (hasta max_timestamp_real)
-            df_real = resampled_data[resampled_data[timestamp_column] <= max_timestamp_real].copy()
-            ax.plot(
-                df_real[timestamp_column],
-                df_real[target_column],
-                label="Real",
-                linestyle="-",
-                color="blue",
-            )
+                # Graficar valores reales (hasta max_timestamp_real)
+                df_real = resampled_data[resampled_data[timestamp_column] <= max_timestamp_real].copy()
+                ax.plot(
+                    df_real[timestamp_column],
+                    df_real[target_column],
+                    label="Real",
+                    linestyle="-",
+                    color="blue",
+                )
 
-            # Graficar valores predichos
-            ax.plot(
-                df_pred[timestamp_column],
-                df_pred["Predicted"],
-                label="Predicción",
-                linestyle="--",
-                color="red",
-            )
+                # Graficar valores predichos
+                ax.plot(
+                    df_pred[timestamp_column],
+                    df_pred["Predicted"],
+                    label="Predicción",
+                    linestyle="--",
+                    color="red",
+                )
 
-            ax.set_title("Predicción vs Real")
-            ax.legend()
-            plt.grid()
-            st.pyplot(fig)
+                ax.set_title("Predicción vs Real")
+                ax.legend()
+                plt.grid()
+                st.pyplot(fig)
 
             y_min, y_max = 150, 245
 
             st.write(f"### Gráfico de Predicciones (Horizonte Futuro) {selected_equipment}")
             prediction_col = "Predicted"
-            if prediction_col in df_real_pred.columns:
+            if prediction_col in df_real_pred.columns and not df_pred.empty:
                 fig, ax = plt.subplots(figsize=(12, 6))
                 ax.plot(
                     df_real_pred[timestamp_column],
@@ -549,7 +555,7 @@ if model is not None and observable_scaler is not None and target_scaler is not 
                 plt.grid()
                 st.pyplot(fig)
             else:
-                st.error(f"La columna de predicciones '{prediction_col}' no está en el DataFrame de predicciones.")
+                st.error(f"No se encontró la columna '{prediction_col}' en las predicciones o no hay predicciones disponibles.")
 
             # Graficar valores reales
             resampled_data_sorted = resampled_data.sort_values(by=timestamp_column)
@@ -606,7 +612,7 @@ if model is not None and observable_scaler is not None and target_scaler is not 
 
             with col2:
                 st.markdown(f"###### Predicciones (Horizonte 48 minutos) {selected_equipment}")
-                if prediction_col in df_real_pred.columns:
+                if prediction_col in df_real_pred.columns and not df_pred.empty:
                     fig2, ax2 = plt.subplots(figsize=(6, 4))
                     ax2.plot(
                         df_real_pred[timestamp_column],
@@ -625,7 +631,7 @@ if model is not None and observable_scaler is not None and target_scaler is not 
                     plt.grid()
                     st.pyplot(fig2)
                 else:
-                    st.error(f"No se encontró la columna {prediction_col} en las predicciones.")
+                    st.error(f"No se encontró la columna '{prediction_col}' en las predicciones o no hay predicciones disponibles.")
 
             # ====================================================================
             # Comparación de Predicciones Pasadas vs Valores Reales (Backtesting)
