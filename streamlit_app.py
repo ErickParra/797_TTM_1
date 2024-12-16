@@ -172,13 +172,13 @@ if st.session_state["selected_equipment"] != selected_equipment:
 # ===================================================
 # Consulta SQL
 # ===================================================
+# =========================
+# Cargar Datos desde SQL
+# =========================
 
-st.title("Actualización de Query y Comparación de Predicciones")
-
-# Botón para refrescar la query SQL
-def update_query():
-    query = f"""
-        SELECT
+# Definir la consulta SQL una sola vez
+base_query = f"""
+SELECT
        [EquipmentName],
        [ReadTime],
        [EquipmentModel],
@@ -223,10 +223,31 @@ WHERE
       ) AND
       ParameterFloatValue IS NOT NULL AND 
       ReadTime > (DATEADD(HOUR, -120, GETDATE()))
-    """
-    st.session_state["query_data"] = load_data(query, conn_str)
+"""
+
+# Botón para refrescar la query SQL
+def update_query():
+    st.session_state["query_data"] = load_data(base_query, conn_str)
 
 st.button("Actualizar Query SQL", on_click=update_query)
+
+# Cargar los datos
+if "query_data" in st.session_state and not st.session_state["query_data"].empty:
+    data = st.session_state["query_data"]
+else:
+    with st.spinner('Ejecutando consulta...'):
+        data = load_data(base_query, conn_str)
+    st.session_state["query_data"] = data
+
+st.success('Consulta completada!')
+
+if data.empty:
+    st.error("No se encontraron datos para el equipo seleccionado.")
+    st.stop()
+
+st.write(f"### Datos obtenidos para el equipo: {selected_equipment}")
+st.dataframe(data)
+
 
 query = f"""
 SELECT
