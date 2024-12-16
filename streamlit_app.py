@@ -61,21 +61,8 @@ if "real_vs_predicted" not in st.session_state:
     st.session_state["real_vs_predicted"] = pd.DataFrame()
 
 # =========================
-# Cargar Datos desde SQL
-# =========================
-
-@st.cache_data
-def load_data(query, conn_str):
-    try:
-        conn = pyodbc.connect(conn_str)
-        data = pd.read_sql(query, conn)
-        conn.close()
-        return data
-    except pyodbc.Error as e:
-        st.error(f"Error al conectar a la base de datos: {e}")
-        return pd.DataFrame()
-
 # Conversión de unidades
+# =========================
 def convert_units(resampled_data):
     # Conversión de presión: kPa a psi
     pressure_columns = [
@@ -305,13 +292,16 @@ selected_param = st.selectbox(
     data['ParameterName'].unique()
 )
 
+# Reemplazar valores específicos
 data.loc[data['ParameterFloatValue'] == 32784, 'ParameterFloatValue'] = 0
 
+# Filtrar y ordenar los datos
 filtered_data = data[(data['ParameterName'] == selected_param) & (data['ParameterFloatValue'] >= -100)]
 filtered_data['ReadTime'] = pd.to_datetime(filtered_data['ReadTime'])
 filtered_data = filtered_data.sort_values(by='ReadTime')
 
-st.write(f"### Gráfico de {selected_param} para el equipo  {selected_equipment}")
+# Graficar el parámetro seleccionado
+st.write(f"### Gráfico de {selected_param} para el equipo {selected_equipment}")
 fig, ax = plt.subplots(figsize=(12, 6))
 if not filtered_data.empty:
     ax.plot(
@@ -321,7 +311,7 @@ if not filtered_data.empty:
         color='blue',
         linewidth=1
     )
-    ax.set_title(f"{selected_param} para  {selected_equipment}")
+    ax.set_title(f"{selected_param} para {selected_equipment}")
     ax.set_xlabel("Tiempo")
     ax.set_ylabel("Valor")
     ax.legend()
@@ -330,11 +320,13 @@ if not filtered_data.empty:
 else:
     st.write("No hay datos disponibles para ese parámetro.")
 
+# Mostrar valores únicos en ParameterName
 st.write("### Valores únicos en ParameterName")
 unique_parameters = data['ParameterName'].unique()
 st.write(f"Número de parámetros únicos: {len(unique_parameters)}")
 st.write(unique_parameters)
 
+# Pivotar y resamplear los datos
 data['ReadTime'] = pd.to_datetime(data['ReadTime'])
 pivoted_data = data.pivot_table(
     index='ReadTime',
@@ -347,6 +339,7 @@ resampled_data = pivoted_data.resample('30S').mean().interpolate(method='linear'
 st.write("### Datos resampleados a 30 segundos")
 st.dataframe(resampled_data.head())
 
+# Renombrar columnas según el mapeo
 vims_column_mapping = {
     "Parking Brake (797F)": "Parking Brake-Brake ECM ()",
     "Cold Mode (797F)": "Cold Mode-Engine ()",
@@ -386,17 +379,23 @@ vims_column_mapping = {
 resampled_data.rename(columns=vims_column_mapping, inplace=True)
 resampled_data = convert_units(resampled_data)
 
+# Localizar la zona horaria y ordenar
 resampled_data.index = resampled_data.index.tz_localize('UTC').tz_convert('America/Santiago')
 resampled_data = resampled_data.sort_index(ascending=False)
 
 st.write("### Datos procesados después de conversiones y renombrados")
 st.dataframe(resampled_data.head())
 
+# Mostrar archivo de configuración
 display_config_file(CONFIG_PATH)
 
+# Cargar el modelo y los escaladores
 model = load_model()
 observable_scaler, target_scaler = load_scalers()
 
+# =============================
+# Simulación de Predicciones (Opcional)
+# =============================
 st.write("### Simulación de predicciones (Opcional)")
 uploaded_file = st.file_uploader("Sube un archivo CSV con datos de entrada", type="csv")
 if uploaded_file and observable_scaler is not None and target_scaler is not None and model is not None:
@@ -414,6 +413,9 @@ if uploaded_file and observable_scaler is not None and target_scaler is not None
     except Exception as e:
         st.error(f"Error durante la predicción: {e}")
 
+# =============================
+# Inspección de Datos
+# =============================
 resampled_data = resampled_data.reset_index()
 if 'ReadTime' in resampled_data.columns:
     resampled_data.rename(columns={'ReadTime': 'New_Date/Time'}, inplace=True)
@@ -430,9 +432,53 @@ st.dataframe(resampled_data.describe())
 st.write("#### Verificación de valores nulos")
 st.write(resampled_data.isnull().sum())
 
+# =============================
+# Configuración para Predicción
+# =============================
 timestamp_column = "New_Date/Time"
 target_column = "Engine Oil Temperature-Engine (Deg F)"
 observable_columns = [col for col in resampled_data.columns if col != timestamp_column]
+
+# =============================
+# Backtesting
+# =============================
+def perform_backtesting(data, pipeline, context_length, freq, timestamp_column, target_column, prediction_length=96, step=96):
+    """
+    Realiza backtesting generando predicciones en ventanas deslizantes de datos históricos.
+
+    Parameters:
+    - data: DataFrame con las columnas de tiempo y objetivo.
+    - pipeline: Pipeline de predicción.
+    - context_length: Número de registros en la ventana de contexto.
+    - freq: Frecuencia de los datos.
+    - timestamp_column: Nombre de la columna de tiempo.
+    - target_column: Nombre de la columna objetivo.
+    - prediction_length: Número de pasos a predecir cada vez.
+    - step: Desplazamiento de la ventana en cada iteración.
+
+    Returns:
+    - backtest_df: DataFrame con Timestamp, Predicted, Actual.
+    """
+    backtest_results = []
+    n = len(data)
+
+    for i in range(context_length, n - prediction_length, step):
+        train_data = data.iloc[i - context_length:i]
+        forecast = pipeline(train_data)
+        forecast = forecast.tail(prediction_length)
+        for _, row in forecast.iterrows():
+            timestamp = row[timestamp_column]
+            predicted = row[target_column]
+            # Obtener el valor real correspondiente
+            actual_row = data[data[timestamp_column] == timestamp]
+            if not actual_row.empty:
+                actual = actual_row.iloc[0][target_column]
+                backtest_results.append({
+                    'Timestamp': timestamp,
+                    'Predicted': predicted,
+                    'Actual': actual
+                })
+    return pd.DataFrame(backtest_results)
 
 # Solo predecir si el modelo y los escaladores están cargados
 if model is not None and observable_scaler is not None and target_scaler is not None:
@@ -614,47 +660,20 @@ if model is not None and observable_scaler is not None and target_scaler is not 
             # ====================================================================
             # Comparación de Predicciones Pasadas vs Valores Reales (Backtesting)
             # ====================================================================
-            context_length = 128
+
             st.write("### Comparación de Predicciones Pasadas vs Valores Reales")
 
-            def perform_backtesting(data, pipeline, prediction_length=96, step=96):
-                """
-                Realiza backtesting generando predicciones en ventanas deslizantes de los datos históricos.
-
-                Parameters:
-                - data: DataFrame con las columnas de tiempo y objetivo.
-                - pipeline: Pipeline de predicción.
-                - prediction_length: Número de pasos a predecir cada vez.
-                - step: Desplazamiento de la ventana en cada iteración.
-
-                Returns:
-                - backtest_df: DataFrame con Timestamp, Predicted, Actual.
-                """
-                backtest_results = []
-                n = len(data)
-                context_length = pipeline.context_length
-                freq = pipeline.freq
-
-                for i in range(context_length, n - prediction_length, step):
-                    train_data = data.iloc[i - context_length:i]
-                    forecast = pipeline(train_data)
-                    forecast = forecast.tail(prediction_length)
-                    for _, row in forecast.iterrows():
-                        timestamp = row[timestamp_column]
-                        predicted = row[target_column]
-                        # Obtener el valor real correspondiente
-                        actual_row = data[data[timestamp_column] == timestamp]
-                        if not actual_row.empty:
-                            actual = actual_row.iloc[0][target_column]
-                            backtest_results.append({
-                                'Timestamp': timestamp,
-                                'Predicted': predicted,
-                                'Actual': actual
-                            })
-                return pd.DataFrame(backtest_results)
-
             # Realizar backtesting
-            backtest_df = perform_backtesting(resampled_data, pipeline)
+            backtest_df = perform_backtesting(
+                data=resampled_data,
+                pipeline=pipeline,
+                context_length=context_length,
+                freq=freq,
+                timestamp_column=timestamp_column,
+                target_column=target_column,
+                prediction_length=96,
+                step=96
+            )
 
             if not backtest_df.empty:
                 st.write("### Tabla de Comparación de Predicciones vs Valores Reales")
@@ -665,12 +684,11 @@ if model is not None and observable_scaler is not None and target_scaler is not 
                 mse = mean_squared_error(backtest_df['Actual'], backtest_df['Predicted'])
                 st.write(f"**MAE:** {mae:.2f}")
                 st.write(f"**MSE:** {mse:.2f}")
+
+                # Guardar en session_state
+                st.session_state["real_vs_predicted"] = backtest_df
             else:
                 st.info("No se generaron resultados de backtesting. Asegúrate de que hay suficientes datos.")
-
-            # Opcional: Guardar en session_state
-            if not backtest_df.empty:
-                st.session_state["real_vs_predicted"] = backtest_df
 
         except Exception as e:
             st.error(f"Error durante la predicción: {e}")
