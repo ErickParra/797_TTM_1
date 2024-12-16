@@ -395,7 +395,8 @@ if model is not None and observable_scaler is not None and target_scaler is not 
             fig, ax = plt.subplots(figsize=(12, 6))
             ax.plot(
                 predictions[timestamp_column],
-                predictions[f"{target_column}_prediction"],
+                #predictions[f"{target_column}_prediction"],
+                predictions[target_column]
                 label="Predicción",
                 linestyle="--",
                 color="red",
