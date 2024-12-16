@@ -246,6 +246,13 @@ else:
 # Proceso de resample, conversión de unidades, etc. (asumimos ya hecho arriba)
 # ...
 
+data['ReadTime'] = pd.to_datetime(data['ReadTime'])
+pivoted_data = data.pivot_table(
+    index='ReadTime',
+    columns='ParameterName',
+    values='ParameterFloatValue'
+)
+
 
 resampled_data = pivoted_data.resample('30S').mean().interpolate(method='linear')
 
