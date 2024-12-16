@@ -249,53 +249,6 @@ st.write(f"### Datos obtenidos para el equipo: {selected_equipment}")
 st.dataframe(data)
 
 
-query = f"""
-SELECT
-       [EquipmentName],
-       [ReadTime],
-       [EquipmentModel],
-       [ParameterName],
-       [ParameterFloatValue]
-FROM [OemDataProvider].[OemParameterExternalView]
-WHERE 
-      [EquipmentModel] = '797F' AND 
-      [EquipmentName] = '{selected_equipment}' AND 
-      [ParameterName] IN (
-          'Parking Brake (797F)', 
-          'Cold Mode (797F)', 
-          'Shift Lever Position (797F)',
-          'Oht Truck Payload State (797F)', 
-          'Engine Oil Pressure (797F)', 
-          'Service Brake Accumulator Pressure (797F)',
-          'Differential (Axle) Lube Pressure (797F)', 
-          'Steering Accumulator Oil Pressure (797F)',
-          'Intake Manifold Air Temperature (797F)', 
-          'Intake Manifold #2 Air Temperature (797F)', 
-          'Machine System Air Pressure (797F)',
-          'Intake Manifold #2 Pressure (797F)', 
-          'Intake Manifold Pressure (797F)', 
-          'Left Rear Parking Brake Oil Pressure (797F)',
-          'Fuel Pressure (797F)', 
-          'Transmission Input Speed (797F)', 
-          'Engine Coolant Pump Outlet Pressure (797F)', 
-          'Engine Speed (797F)',
-          'Fuel Rail Pressure (797F)', 
-          'Engine Fan Speed (797F)',
-          'Right Exhaust Temperature (797F)', 
-          'Left Exhaust Temperature (797F)', 
-          'Left Front Brake Oil Temperature (797F)',
-          'Right Front Brake Oil Temperature (797F)', 
-          'Oil Filter Differential Pressure (797F)', 
-          'Right Rear Brake Oil Temperature (797F)',
-          'Left Rear Brake Oil Temperature (797F)', 
-          'Engine Coolant Pump Outlet Temperature (797F)', 
-          'Engine Coolant Temperature (797F)',
-          'Transmission Oil Temperature (797F)', 
-          'Engine Oil Temperature (797F)'
-      ) AND
-      ParameterFloatValue IS NOT NULL AND 
-      ReadTime > (DATEADD(HOUR, -120, GETDATE()))
-"""
 
 with st.spinner('Ejecutando consulta...'):
     data = load_data(query, conn_str)
